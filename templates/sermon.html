@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Visualização do Sermão | Exposibot</title>
+    <style>
+        body {
+            background-color: #f7fafc;
+            color: #1a202c;
+            font-family: 'Georgia', serif; /* Fonte clássica para leitura */
+            line-height: 1.8;
+            padding: 40px;
+            display: flex;
+            justify-content: center;
+        }
+        .paper {
+            background: white;
+            width: 100%;
+            max-width: 800px;
+            padding: 60px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+        h1 { text-align: center; color: #2d3748; font-size: 2rem; margin-bottom: 10px; }
+        .meta-info { background: #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 30px; font-family: sans-serif; font-size: 0.9rem;}
+        .meta-row { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #cbd5e0; padding-bottom: 5px;}
+        .meta-label { font-weight: bold; color: #4a5568; }
+
+        h2 { color: #2c5282; border-bottom: 2px solid #2c5282; padding-bottom: 5px; margin-top: 30px; font-size: 1.4rem;}
+        h3 { color: #2b6cb0; margin-top: 20px; font-size: 1.2rem; }
+
+        .point-block { margin-bottom: 20px; padding-left: 15px; border-left: 4px solid #bee3f8; }
+        .illustration { font-style: italic; color: #718096; margin: 10px 0; display: block; }
+        .application { font-weight: bold; color: #2f855a; }
+
+        .toolbar {
+            position: fixed; top: 0; left: 0; width: 100%; background: #1a202c; padding: 10px;
+            display: flex; justify-content: center; gap: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .btn { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase;}
+        .btn-download { background-color: #d69e2e; color: #1a202c; }
+        .btn-back { background-color: #4a5568; color: white; }
+
+        @media print {
+            .toolbar { display: none; }
+            body { background: white; padding: 0; }
+            .paper { box-shadow: none; border: none; width: 100%; max-width: 100%; padding: 20px;}
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <button class="btn btn-back" onclick="window.close()">Fechar</button>
+        <button class="btn" onclick="window.print()">🖨️ Imprimir / PDF</button>
+
+        <!-- Formulário invisível para baixar DOCX usando os mesmos dados -->
+        <form action="/download_sermon_docx" method="POST" style="display:inline;">
+            {% for key, value in data.items() %}
+                {% if key not in ['topico_titulo[]', 'topico_explicacao[]', 'topico_ilustracao[]', 'topico_aplicacao[]'] %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+            {% endfor %}
+
+            <!-- Reenviar listas -->
+            {% for topico in topicos %}
+                <input type="hidden" name="topico_titulo[]" value="{{ topico.titulo }}">
+                <input type="hidden" name="topico_explicacao[]" value="{{ topico.explicacao }}">
+                <input type="hidden" name="topico_ilustracao[]" value="{{ topico.ilustracao }}">
+                <input type="hidden" name="topico_aplicacao[]" value="{{ topico.aplicacao }}">
+            {% endfor %}
+
+            <button type="submit" class="btn btn-download">💾 Baixar DOCX</button>
+        </form>
+    </div>
+
+    <div class="paper">
+        <h1>Esboço de Pregação Expositiva</h1>
+
+        <div class="meta-info">
+            <div class="meta-row"><span class="meta-label">Texto Base:</span> <span>{{ data.texto_biblico }}</span></div>
+            <div class="meta-row"><span class="meta-label">Ideia Central (ICT):</span> <span>{{ data.ict }}</span></div>
+            <div class="meta-row"><span class="meta-label">Tese:</span> <span>{{ data.tese }}</span></div>
+            <div class="meta-row"><span class="meta-label">Propósito:</span> <span>{{ data.proposito_basico }} ({{ data.proposito_especifico }})</span></div>
+        </div>
+
+        <h2>Introdução</h2>
+        <p>{{ data.intro }}</p>
+
+        <h2>Desenvolvimento</h2>
+        {% for topico in topicos %}
+            <div class="point-block">
+                <h3>{{ loop.index }}. {{ topico.titulo }}</h3>
+                <p>{{ topico.explicacao }}</p>
+                {% if topico.ilustracao %}
+                    <span class="illustration">💡 Ilus: {{ topico.ilustracao }}</span>
+                {% endif %}
+                <p class="application">⚡ Aplicação: {{ topico.aplicacao }}</p>
+            </div>
+        {% endfor %}
+
+        <h2>Conclusão</h2>
+        <p>{{ data.conclusao }}</p>
+    </div>
+
+</body>
+</html>
