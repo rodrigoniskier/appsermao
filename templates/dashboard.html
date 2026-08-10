@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Meus Sermões | Exposibot{% endblock %}
+{% block content %}
+<div class="dashboard">
+    <div class="dashboard-head">
+        <h1>Meus Sermões</h1>
+        <form method="POST" action="{{ url_for('dashboard.new_sermon') }}">
+            <button type="submit" class="btn btn-gold">+ Novo Sermão</button>
+        </form>
+    </div>
+
+    {% if sermons %}
+    <div class="sermon-grid">
+        {% for sermon in sermons %}
+        <div class="sermon-card">
+            <h3>{{ sermon.display_title() }}</h3>
+            <span class="meta">{{ sermon.status }} · atualizado em {{ sermon.updated_at.strftime('%d/%m/%Y %H:%M') }}</span>
+            <div class="actions">
+                <a class="btn btn-accent" href="{{ url_for('dashboard.workspace', sermon_id=sermon.id) }}">Abrir</a>
+                <form method="POST" action="{{ url_for('dashboard.delete_sermon', sermon_id=sermon.id) }}"
+                      onsubmit="return confirm('Excluir este sermão? Essa ação não pode ser desfeita.');">
+                    <button type="submit" class="btn btn-muted">Excluir</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>Você ainda não tem sermões salvos. Clique em "Novo Sermão" para começar.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

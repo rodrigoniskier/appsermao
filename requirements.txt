@@ -1,6 +1,10 @@
 Flask
+Flask-SQLAlchemy
+Flask-Login
 python-dotenv
 python-docx
 groq
+google-genai
 tavily-python
 Markdown
+requests
