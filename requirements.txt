@@ -1,0 +1,6 @@
+Flask
+python-dotenv
+python-docx
+groq
+tavily-python
+Markdown
