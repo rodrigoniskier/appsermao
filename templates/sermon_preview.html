@@ -7,7 +7,7 @@
         body {
             background-color: #f7fafc;
             color: #1a202c;
-            font-family: 'Georgia', serif; /* Fonte clássica para leitura */
+            font-family: 'Georgia', serif;
             line-height: 1.8;
             padding: 40px;
             display: flex;
@@ -37,7 +37,7 @@
             position: fixed; top: 0; left: 0; width: 100%; background: #1a202c; padding: 10px;
             display: flex; justify-content: center; gap: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-        .btn { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase;}
+        .btn { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase; text-decoration: none; display: inline-block; }
         .btn-download { background-color: #d69e2e; color: #1a202c; }
         .btn-back { background-color: #4a5568; color: white; }
 
@@ -51,41 +51,24 @@
 <body>
 
     <div class="toolbar">
-        <button class="btn btn-back" onclick="window.close()">Fechar</button>
+        <a class="btn btn-back" href="{{ url_for('dashboard.workspace', sermon_id=sermon.id) }}">← Voltar ao Workspace</a>
         <button class="btn" onclick="window.print()">🖨️ Imprimir / PDF</button>
-
-        <!-- Formulário invisível para baixar DOCX usando os mesmos dados -->
-        <form action="/download_sermon_docx" method="POST" style="display:inline;">
-            {% for key, value in data.items() %}
-                {% if key not in ['topico_titulo[]', 'topico_explicacao[]', 'topico_ilustracao[]', 'topico_aplicacao[]'] %}
-                <input type="hidden" name="{{ key }}" value="{{ value }}">
-                {% endif %}
-            {% endfor %}
-
-            <!-- Reenviar listas -->
-            {% for topico in topicos %}
-                <input type="hidden" name="topico_titulo[]" value="{{ topico.titulo }}">
-                <input type="hidden" name="topico_explicacao[]" value="{{ topico.explicacao }}">
-                <input type="hidden" name="topico_ilustracao[]" value="{{ topico.ilustracao }}">
-                <input type="hidden" name="topico_aplicacao[]" value="{{ topico.aplicacao }}">
-            {% endfor %}
-
-            <button type="submit" class="btn btn-download">💾 Baixar DOCX</button>
-        </form>
+        <a class="btn btn-download" href="{{ url_for('dashboard.download_docx', sermon_id=sermon.id) }}">💾 Baixar DOCX</a>
+        <a class="btn btn-download" href="{{ url_for('dashboard.download_md', sermon_id=sermon.id) }}">💾 Baixar Markdown</a>
     </div>
 
     <div class="paper">
         <h1>Esboço de Pregação Expositiva</h1>
 
         <div class="meta-info">
-            <div class="meta-row"><span class="meta-label">Texto Base:</span> <span>{{ data.texto_biblico }}</span></div>
-            <div class="meta-row"><span class="meta-label">Ideia Central (ICT):</span> <span>{{ data.ict }}</span></div>
-            <div class="meta-row"><span class="meta-label">Tese:</span> <span>{{ data.tese }}</span></div>
-            <div class="meta-row"><span class="meta-label">Propósito:</span> <span>{{ data.proposito_basico }} ({{ data.proposito_especifico }})</span></div>
+            <div class="meta-row"><span class="meta-label">Texto Base:</span> <span>{{ sermon.reference }}</span></div>
+            <div class="meta-row"><span class="meta-label">Ideia Central (ICT):</span> <span>{{ outline.get('ict', '') }}</span></div>
+            <div class="meta-row"><span class="meta-label">Tese:</span> <span>{{ outline.get('tese', '') }}</span></div>
+            <div class="meta-row"><span class="meta-label">Propósito:</span> <span>{{ outline.get('proposito_basico', '') }} ({{ outline.get('proposito_especifico', '') }})</span></div>
         </div>
 
         <h2>Introdução</h2>
-        <p>{{ data.intro }}</p>
+        <p>{{ outline.get('intro', '') }}</p>
 
         <h2>Desenvolvimento</h2>
         {% for topico in topicos %}
@@ -100,7 +83,7 @@
         {% endfor %}
 
         <h2>Conclusão</h2>
-        <p>{{ data.conclusao }}</p>
+        <p>{{ outline.get('conclusao', '') }}</p>
     </div>
 
 </body>
