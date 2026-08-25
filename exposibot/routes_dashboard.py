@@ -85,9 +85,13 @@ def _build_docx(sermon):
     document.add_paragraph(f"Texto Base: {sermon.reference}")
     document.add_paragraph(f"ICT: {outline.get('ict', '')}")
     document.add_paragraph(f"Tese: {outline.get('tese', '')}")
+    if outline.get("fcd"):
+        document.add_paragraph(f"FCD: {outline.get('fcd', '')}")
     document.add_paragraph(
         f"Propósito: {outline.get('proposito_basico', '')} | {outline.get('proposito_especifico', '')}"
     )
+    if outline.get("proposito_redentivo"):
+        document.add_paragraph(f"Propósito redentivo: {outline.get('proposito_redentivo', '')}")
     document.add_paragraph("-" * 60)
 
     document.add_heading("Introdução", level=1)
@@ -98,7 +102,9 @@ def _build_docx(sermon):
 
     for i, topico in enumerate(outline.get("topicos", []), start=1):
         document.add_heading(f"{i}. {topico.get('titulo', '')}", level=2)
-        _bold_label("Explicação:")
+        if topico.get("texto_base"):
+            document.add_paragraph(f"Texto: {topico.get('texto_base', '')}")
+        _bold_label("Elucidação:")
         document.add_paragraph(topico.get("explicacao", ""))
         if topico.get("ilustracao"):
             _bold_label("Ilustração:")
@@ -109,6 +115,13 @@ def _build_docx(sermon):
                 pass
         _bold_label("Aplicação:")
         document.add_paragraph(topico.get("aplicacao", ""))
+        if topico.get("transicao"):
+            _bold_label("Transição:")
+            document.add_paragraph(topico.get("transicao", ""))
+
+    if outline.get("conexao_cristocentrica"):
+        document.add_heading("Conexão Cristocêntrica", level=1)
+        document.add_paragraph(outline.get("conexao_cristocentrica", ""))
 
     document.add_heading("Conclusão", level=1)
     document.add_paragraph(outline.get("conclusao", ""))
@@ -143,7 +156,16 @@ def download_md(sermon_id):
         f"**Texto Base:** {sermon.reference}",
         f"**ICT:** {outline.get('ict', '')}",
         f"**Tese:** {outline.get('tese', '')}",
-        f"**Propósito:** {outline.get('proposito_basico', '')} — {outline.get('proposito_especifico', '')}",
+    ]
+    if outline.get("fcd"):
+        lines.append(f"**FCD:** {outline.get('fcd', '')}")
+    lines.append(
+        f"**Propósito:** {outline.get('proposito_basico', '')} — {outline.get('proposito_especifico', '')}"
+    )
+    if outline.get("proposito_redentivo"):
+        lines.append(f"**Propósito redentivo:** {outline.get('proposito_redentivo', '')}")
+
+    lines += [
         "",
         "## Introdução",
         outline.get("intro", ""),
@@ -152,11 +174,23 @@ def download_md(sermon_id):
     ]
     for i, topico in enumerate(outline.get("topicos", []), start=1):
         lines.append(f"### {i}. {topico.get('titulo', '')}")
-        lines.append(topico.get("explicacao", ""))
+        if topico.get("texto_base"):
+            lines.append(f"**Texto:** {topico.get('texto_base', '')}")
+        lines.append(f"**Elucidação:** {topico.get('explicacao', '')}")
         if topico.get("ilustracao"):
             lines.append(f"> 💡 Ilustração: {topico['ilustracao']}")
         lines.append(f"**Aplicação:** {topico.get('aplicacao', '')}")
+        if topico.get("transicao"):
+            lines.append(f"**Transição:** {topico.get('transicao', '')}")
         lines.append("")
+
+    if outline.get("conexao_cristocentrica"):
+        lines += [
+            "## Conexão Cristocêntrica",
+            outline.get("conexao_cristocentrica", ""),
+            "",
+        ]
+
     lines += ["## Conclusão", outline.get("conclusao", "")]
 
     buf = BytesIO("\n\n".join(lines).encode("utf-8"))

@@ -5,6 +5,7 @@
     <div class="dashboard-head">
         <h1>Meus Sermões</h1>
         <form method="POST" action="{{ url_for('dashboard.new_sermon') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-gold">+ Novo Sermão</button>
         </form>
     </div>
@@ -19,6 +20,7 @@
                 <a class="btn btn-accent" href="{{ url_for('dashboard.workspace', sermon_id=sermon.id) }}">Abrir</a>
                 <form method="POST" action="{{ url_for('dashboard.delete_sermon', sermon_id=sermon.id) }}"
                       onsubmit="return confirm('Excluir este sermão? Essa ação não pode ser desfeita.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-muted">Excluir</button>
                 </form>
             </div>
