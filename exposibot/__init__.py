@@ -58,7 +58,13 @@ def _csrf_token():
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def create_app():
+def create_app(test_config=None):
+    """Cria a aplicação Flask.
+
+    ``test_config`` permite substituir configurações em testes sem alterar o
+    comportamento de produção. Em produção, ``create_app()`` continua idêntico
+    ao uso anterior.
+    """
     _load_environment()
 
     app = Flask(
@@ -68,15 +74,16 @@ def create_app():
     )
 
     os.makedirs(app.instance_path, exist_ok=True)
-    app.config["SECRET_KEY"] = _load_or_create_secret_key(app.instance_path)
-    app.config["SESSION_COOKIE_HTTPONLY"] = True
-    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-    app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(
-        app.instance_path, "exposibot.db"
+    app.config.update(
+        SECRET_KEY=_load_or_create_secret_key(app.instance_path),
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        MAX_CONTENT_LENGTH=2 * 1024 * 1024,
+        SQLALCHEMY_DATABASE_URI="sqlite:///" + os.path.join(app.instance_path, "exposibot.db"),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    if test_config:
+        app.config.update(test_config)
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -88,9 +95,8 @@ def create_app():
 
     @app.before_request
     def protect_form_posts():
-        # Os endpoints /api aceitam JSON e ficam protegidos pela política de
-        # mesma origem do navegador. Formulários tradicionais recebem token
-        # explícito para impedir POSTs forjados por outros sites.
+        # Formulários tradicionais recebem token explícito. Os endpoints /api
+        # recebem JSON e não são acionáveis por formulários HTML comuns.
         if request.method == "POST" and request.blueprint != "api":
             expected = session.get("_csrf_token")
             supplied = request.form.get("csrf_token", "")
