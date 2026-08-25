@@ -1,9 +1,10 @@
+import hmac
 import os
 import secrets
 
 import markdown as md
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, abort, request, session
 from markupsafe import Markup, escape
 
 from exposibot.extensions import db, login_manager
@@ -19,12 +20,7 @@ def _load_environment():
 
 
 def _load_or_create_secret_key(instance_path):
-    """Obtém a SECRET_KEY sem recorrer a um valor público e previsível.
-
-    A variável de ambiente continua sendo a opção preferida. Se ela não estiver
-    definida, gera uma chave persistente dentro da pasta instance, que não faz
-    parte do repositório e permanece estável entre reinícios do processo.
-    """
+    """Obtém a SECRET_KEY sem recorrer a um valor público e previsível."""
     configured_key = os.getenv("SECRET_KEY")
     if configured_key:
         return configured_key
@@ -49,6 +45,14 @@ def _load_or_create_secret_key(instance_path):
         pass
 
     return generated_key
+
+
+def _csrf_token():
+    token = session.get("_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_csrf_token"] = token
+    return token
 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -80,6 +84,18 @@ def create_app():
     # Escapa HTML antes de converter Markdown para impedir que texto vindo da IA
     # ou salvo pelo usuário seja promovido a HTML executável no navegador.
     app.jinja_env.filters["markdown"] = lambda text: Markup(md.markdown(str(escape(text or ""))))
+    app.jinja_env.globals["csrf_token"] = _csrf_token
+
+    @app.before_request
+    def protect_form_posts():
+        # Os endpoints /api aceitam JSON e ficam protegidos pela política de
+        # mesma origem do navegador. Formulários tradicionais recebem token
+        # explícito para impedir POSTs forjados por outros sites.
+        if request.method == "POST" and request.blueprint != "api":
+            expected = session.get("_csrf_token")
+            supplied = request.form.get("csrf_token", "")
+            if not expected or not supplied or not hmac.compare_digest(expected, supplied):
+                abort(400, description="Token CSRF ausente ou inválido.")
 
     from exposibot import auth, routes_api, routes_dashboard
 
