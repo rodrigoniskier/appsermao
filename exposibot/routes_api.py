@@ -4,12 +4,16 @@ import re
 import markdown as md
 from flask import Blueprint, abort, jsonify, request
 from flask_login import current_user, login_required
+from markupsafe import escape
 
 from exposibot import ai_providers, bible
 from exposibot.extensions import db
 from exposibot.models import Sermon
 
 bp = Blueprint("api", __name__, url_prefix="/api")
+
+MAX_REFERENCE_LENGTH = 500
+MAX_NOTES_LENGTH = 50000
 
 SEARCH_QUERIES = {
     "Dados Geográficos": "geography archaeology location {ref} biblical scholar commentary",
@@ -47,6 +51,11 @@ def _get_owned_sermon(sermon_id):
     return sermon
 
 
+def _safe_markdown_html(text):
+    """Converte Markdown sem permitir HTML executável vindo do modelo."""
+    return md.markdown(str(escape(text or "")))
+
+
 @bp.route("/analyze", methods=["POST"])
 @login_required
 def analyze():
@@ -56,6 +65,8 @@ def analyze():
 
     if not texto:
         return jsonify({"error": "A referência bíblica está vazia."}), 400
+    if len(texto) > MAX_REFERENCE_LENGTH:
+        return jsonify({"error": "A referência ou instrução está longa demais."}), 400
 
     search_template = SEARCH_QUERIES.get(tipo, "{ref} reformed theology calvinist commentary")
     search_context = ai_providers.perform_grounded_search(search_template.format(ref=texto))
@@ -71,7 +82,7 @@ def analyze():
         return jsonify({"error": str(e)}), 503
 
     return jsonify({
-        "html": md.markdown(markdown_text),
+        "html": _safe_markdown_html(markdown_text),
         "markdown": markdown_text,
         "provider": provider,
     })
@@ -82,7 +93,14 @@ def analyze():
 def suggest_sermon():
     data = request.get_json(silent=True) or {}
     notes = data.get("notes", "")
-    reference = data.get("reference", "")
+    reference = (data.get("reference", "") or "").strip()
+
+    if not isinstance(notes, str):
+        return jsonify({"error": "As notas precisam estar em formato de texto."}), 400
+    if len(notes) > MAX_NOTES_LENGTH:
+        return jsonify({"error": "As notas excedem o limite permitido para uma única geração."}), 413
+    if len(reference) > MAX_REFERENCE_LENGTH:
+        return jsonify({"error": "A referência bíblica está longa demais."}), 400
 
     prompt = f"""
     Com base EXCLUSIVAMENTE nas notas de pesquisa fornecidas e no texto de {reference}, crie um esboço de sermão expositivo completo.
@@ -129,7 +147,10 @@ def update_sermon(sermon_id):
     data = request.get_json(silent=True) or {}
 
     if "reference" in data:
-        sermon.reference = (data["reference"] or "").strip()
+        reference = (data["reference"] or "").strip()
+        if len(reference) > MAX_REFERENCE_LENGTH:
+            return jsonify({"error": "A referência bíblica está longa demais."}), 400
+        sermon.reference = reference
     if "research_notes" in data and isinstance(data["research_notes"], list):
         sermon.research_notes = data["research_notes"]
     if "outline" in data and isinstance(data["outline"], dict):
@@ -144,5 +165,7 @@ def update_sermon(sermon_id):
 @login_required
 def passage():
     ref = request.args.get("ref", "")
+    if len(ref) > MAX_REFERENCE_LENGTH:
+        return jsonify({"error": "A referência bíblica está longa demais."}), 400
     result = bible.fetch_passage(ref)
     return jsonify(result or {})
