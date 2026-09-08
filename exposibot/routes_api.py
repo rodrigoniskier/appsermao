@@ -6,7 +6,7 @@ from flask import Blueprint, abort, jsonify, request
 from flask_login import current_user, login_required
 from pydantic import ValidationError
 
-from exposibot import ai_providers, bible
+from exposibot import ai_providers, ai_service, bible
 from exposibot.extensions import db, limiter
 from exposibot.models import Sermon
 from exposibot.schemas import SermonOutline
@@ -18,7 +18,6 @@ MAX_REFERENCE_LENGTH = 500
 MAX_NOTES_LENGTH = 50000
 MAX_RESEARCH_ITEMS = 50
 
-# Modelo estável atual, mas configurável sem alterar código.
 ai_providers.GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
 SEARCH_QUERIES = {
@@ -87,21 +86,17 @@ def analyze():
     if tipo not in PROMPTS:
         return jsonify({"error": "Tipo de análise inválido."}), 400
 
-    # O Tavily é contexto de fallback/curadoria. O Gemini também pode usar
-    # grounding nativo; a camada de provider decide qual caminho está disponível.
-    search_template = SEARCH_QUERIES[tipo]
-    search_context = ai_providers.perform_grounded_search(search_template.format(ref=texto))
-
     instruction = PROMPTS[tipo]
     user_instruction = (
-        f"Com base na referência '{texto}' e ESTRITAMENTE no contexto fornecido: {instruction}"
+        f"Analise a referência '{texto}': {instruction}"
         "\n\nA análise deve servir à preparação expositiva: preserve o sentido do texto, "
         "diferencie dado de inferência e, quando pertinente, indique relevância homilética sem saltar diretamente para a aplicação. "
-        "Finalize com '### Referências Consultadas' contendo somente links reais fornecidos no contexto."
+        "Finalize com '### Referências Consultadas' contendo somente links reais efetivamente consultados."
     )
+    search_query = SEARCH_QUERIES[tipo].format(ref=texto)
 
     try:
-        markdown_text, provider = ai_providers.generate_research(user_instruction, search_context)
+        markdown_text, provider = ai_service.generate_research(user_instruction, search_query)
     except ai_providers.ProviderUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
 
@@ -138,7 +133,7 @@ Retorne APENAS JSON válido com os campos: ict, tese, fcd, proposito_redentivo, 
 """
 
     try:
-        json_str, provider = ai_providers.generate_sermon_json(prompt, notes)
+        json_str, provider = ai_service.generate_sermon_json(prompt, notes)
     except ai_providers.ProviderUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
 
