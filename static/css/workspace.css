@@ -1,4 +1,4 @@
-body.workspace-page {
+body {
     height: 100vh;
     height: 100dvh;
     display: flex;
@@ -49,7 +49,7 @@ main.workspace-main { flex: 1; overflow: hidden; }
 .full-width { width: 100%; }
 
 @media (max-width: 980px) {
-    body.workspace-page { overflow: auto; height: auto; min-height: 100dvh; }
+    body { overflow: auto; height: auto; min-height: 100dvh; }
     main.workspace-main { overflow: visible; }
     .workspace-header { height: auto; min-height: 54px; padding: 10px 14px; align-items: flex-start; gap: 10px; }
     .workspace-header .right { flex-wrap: wrap; justify-content: flex-end; }
