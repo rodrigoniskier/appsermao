@@ -100,16 +100,16 @@ def _clip_section(section, budget):
     section = section.strip()
     if len(section) <= budget:
         return section
+    if budget <= 0:
+        return ""
     if budget < 240:
         return section[:budget]
 
-    head_size = int(budget * 0.72)
-    tail_size = budget - head_size - 38
-    return (
-        section[:head_size].rstrip()
-        + "\n… [nota compactada para o fallback] …\n"
-        + section[-tail_size:].lstrip()
-    )
+    marker = "\n… [nota compactada para o fallback] …\n"
+    available = max(0, budget - len(marker))
+    head_size = int(available * 0.72)
+    tail_size = available - head_size
+    return section[:head_size].rstrip() + marker + section[-tail_size:].lstrip()
 
 
 def compact_research_notes(context, max_chars=GROQ_CONTEXT_MAX_CHARS):
@@ -132,10 +132,13 @@ def compact_research_notes(context, max_chars=GROQ_CONTEXT_MAX_CHARS):
         return _clip_section(text, max_chars)
 
     separator_cost = 2 * (len(sections) - 1)
-    usable = max(600, max_chars - separator_cost)
-    per_section = max(320, usable // len(sections))
-    compacted = "\n\n".join(_clip_section(section, per_section) for section in sections)
-    return compacted[:max_chars]
+    usable = max(0, max_chars - separator_cost)
+    base_budget, remainder = divmod(usable, len(sections))
+    pieces = []
+    for index, section in enumerate(sections):
+        budget = base_budget + (1 if index < remainder else 0)
+        pieces.append(_clip_section(section, budget))
+    return "\n\n".join(pieces)
 
 
 def generate_research(prompt, search_query):
