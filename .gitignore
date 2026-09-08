@@ -5,7 +5,11 @@ __pycache__/
 *.pyo
 db.sqlite3
 instance/
+backups/
 .env
 *.log
 media/
 staticfiles/
+.coverage
+.pytest_cache/
+.ruff_cache/
