@@ -24,20 +24,22 @@ No Bash Console do PythonAnywhere:
 cd ~/mysite
 git status
 git pull origin main
-source venv/bin/activate  # use apenas se este for o nome do virtualenv atual
 bash scripts/deploy_pythonanywhere.sh
 ```
+
+Não é necessário executar `source venv/bin/activate`. O script detecta um virtualenv ativo ou um `venv`/`.venv` existente. Se nenhum existir, cria automaticamente `~/mysite/.venv` e executa todo o deploy dentro dele, evitando alterar os pacotes Python compartilhados da conta.
 
 O script:
 
 1. cria backup do SQLite quando ele existir;
-2. atualiza dependências;
-3. compila o código;
-4. executa toda a suíte de testes;
-5. executa as migrações Alembic/Flask-Migrate;
-6. verifica `/healthz` e `/readyz`.
+2. seleciona/cria o virtualenv isolado do projeto;
+3. atualiza dependências dentro desse virtualenv;
+4. compila o código;
+5. executa toda a suíte de testes;
+6. executa as migrações Alembic/Flask-Migrate;
+7. verifica `/healthz` e `/readyz`.
 
-Depois, abra a aba **Web** do PythonAnywhere e clique em **Reload**.
+Depois, abra a aba **Web** do PythonAnywhere. No campo **Virtualenv**, confirme que está configurado o mesmo diretório exibido pelo script (normalmente `/home/niskierrodrigo/mysite/.venv`) e clique em **Reload**.
 
 ## Primeira atualização desta versão
 
