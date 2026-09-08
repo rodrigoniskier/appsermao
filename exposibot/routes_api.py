@@ -159,6 +159,8 @@ def update_sermon(sermon_id):
         reference = (data["reference"] or "").strip()
         if len(reference) > MAX_REFERENCE_LENGTH:
             return jsonify({"error": "A referência bíblica está longa demais."}), 400
+        if reference != sermon.reference:
+            sermon.passage_cache = None
         sermon.reference = reference
 
     if "research_notes" in data:
@@ -181,12 +183,68 @@ def update_sermon(sermon_id):
     return jsonify({"ok": True, "updated_at": sermon.updated_at.isoformat()})
 
 
-@bp.route("/passage")
+@bp.get("/bible/catalog")
+@login_required
+def bible_catalog():
+    return jsonify({"books": bible.catalog(), "version": bible.DEFAULT_VERSION.upper()})
+
+
+@bp.get("/bible/chapter")
+@login_required
+@limiter.limit("30 per minute")
+def bible_chapter():
+    book = request.args.get("book", "").strip().lower()
+    try:
+        chapter = int(request.args.get("chapter", "0"))
+    except ValueError:
+        return jsonify({"error": "Capítulo inválido."}), 400
+
+    catalog_entry = next((item for item in bible.catalog() if item["abbr"] == book), None)
+    if not catalog_entry or chapter < 1 or chapter > catalog_entry["chapters"]:
+        return jsonify({"error": "Livro ou capítulo inválido."}), 400
+
+    data = bible.fetch_chapter(book, chapter)
+    if not data:
+        return jsonify({"error": "Não foi possível carregar este capítulo agora."}), 503
+    return jsonify(data)
+
+
+@bp.get("/passage")
 @login_required
 @limiter.limit("60 per minute")
 def passage():
     ref = request.args.get("ref", "").strip()
-    if len(ref) > MAX_REFERENCE_LENGTH:
-        return jsonify({"error": "A referência bíblica está longa demais."}), 400
+    if not ref or len(ref) > MAX_REFERENCE_LENGTH:
+        return jsonify({"error": "Referência bíblica inválida."}), 400
+
+    sermon = None
+    sermon_id = request.args.get("sermon_id", "").strip()
+    if sermon_id:
+        try:
+            sermon = _get_owned_sermon(int(sermon_id))
+        except ValueError:
+            return jsonify({"error": "Sermão inválido."}), 400
+
+        cache = sermon.passage_cache or {}
+        if cache.get("reference") == ref and cache.get("text") and cache.get("version"):
+            return jsonify(
+                {
+                    "version": cache["version"],
+                    "text": cache["text"],
+                    "cached": True,
+                }
+            )
+
     result = bible.fetch_passage(ref)
-    return jsonify(result or {})
+    if not result:
+        return jsonify({})
+
+    if sermon is not None:
+        sermon.passage_cache = {
+            "reference": ref,
+            "version": result["version"],
+            "text": result["text"],
+        }
+        db.session.commit()
+
+    return jsonify({**result, "cached": False})
