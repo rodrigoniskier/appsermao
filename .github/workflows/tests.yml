@@ -2,7 +2,7 @@ name: Quality
 
 on:
   push:
-    branches: [main, production-foundation-2026]
+    branches: [main, production-foundation-2026, hotfix-pythonanywhere-deploy]
   pull_request:
 
 permissions:
@@ -11,10 +11,10 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - name: Checkout
@@ -42,6 +42,15 @@ jobs:
           SECRET_KEY: ci-test-secret-key
         run: python -m unittest discover -s tests -v
 
+      - name: Migration smoke test
+        env:
+          SECRET_KEY: ci-test-secret-key
+          DATABASE_URL: sqlite:////tmp/exposibot_migration_ci.db
+        run: |
+          rm -f /tmp/exposibot_migration_ci.db
+          python -m flask --app app db upgrade
+          python -m flask --app app db current
+
       - name: Audit dependencies
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.13'
         run: pip-audit -r requirements.txt
