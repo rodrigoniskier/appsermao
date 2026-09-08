@@ -13,6 +13,7 @@
     let lastType = '';
     let saveTimer = null;
     let passageTimer = null;
+    let bibleCatalog = [];
 
     const $ = (id) => document.getElementById(id);
 
@@ -34,11 +35,9 @@
     function makeField(labelText, field, value = '', rows = 0, placeholder = '') {
         const group = document.createElement('div');
         group.className = 'form-group';
-
         const label = document.createElement('label');
         label.textContent = labelText;
         group.appendChild(label);
-
         const control = rows > 0 ? document.createElement('textarea') : document.createElement('input');
         if (rows > 0) control.rows = rows;
         else control.type = 'text';
@@ -84,7 +83,6 @@
             aplicacao: el.querySelector('[data-field="aplicacao"]').value,
             transicao: el.querySelector('[data-field="transicao"]').value,
         }));
-
         return {
             ict: $('ict').value,
             tese: $('tese').value,
@@ -143,7 +141,6 @@
                 $('ai-output').textContent = data.error || 'Não foi possível concluir a análise.';
                 return;
             }
-            // HTML retornado pelo servidor já foi sanitizado por allowlist.
             $('ai-output').innerHTML = data.html;
             lastRaw = data.markdown || '';
             lastHtml = data.html || '';
@@ -192,7 +189,6 @@
     async function suggestSermon() {
         const notesText = researchNotes.map((note) => `[${note.tipo}]\n${note.markdown}`).join('\n\n');
         if (notesText.trim().length < 50 && !window.confirm('Há poucas notas de pesquisa. Deseja continuar?')) return;
-
         const button = $('suggest-sermon');
         button.disabled = true;
         button.textContent = 'Estruturando sermão…';
@@ -224,16 +220,17 @@
             return;
         }
         try {
-            const response = await fetch(`/api/passage?ref=${encodeURIComponent(reference)}`);
+            const query = new URLSearchParams({ref: reference, sermon_id: String(SERMON_ID)});
+            const response = await fetch(`/api/passage?${query.toString()}`);
             const data = await response.json();
-            if (!data || !data.text) {
+            if (!response.ok || !data || !data.text) {
                 panel.hidden = true;
                 return;
             }
             panel.replaceChildren();
             const version = document.createElement('span');
             version.className = 'version-tag';
-            version.textContent = data.version || '';
+            version.textContent = `${data.version || ''}${data.cached ? ' · cache' : ''}`;
             const text = document.createElement('div');
             text.className = 'passage-text';
             text.textContent = data.text;
@@ -242,6 +239,103 @@
         } catch (_error) {
             panel.hidden = true;
         }
+    }
+
+    function resetSelect(select, placeholder) {
+        select.replaceChildren();
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = placeholder;
+        select.appendChild(option);
+    }
+
+    async function loadBibleCatalog() {
+        const status = $('bible-picker-status');
+        try {
+            const response = await fetch('/api/bible/catalog');
+            const data = await response.json();
+            if (!response.ok || !Array.isArray(data.books)) throw new Error('catalog');
+            bibleCatalog = data.books;
+            resetSelect($('bible-book'), 'Selecione…');
+            bibleCatalog.forEach((book) => {
+                const option = document.createElement('option');
+                option.value = book.abbr;
+                option.textContent = book.name;
+                option.dataset.chapters = String(book.chapters);
+                $('bible-book').appendChild(option);
+            });
+            status.textContent = `Versão de consulta: ${data.version || 'NVI'}`;
+        } catch (_error) {
+            status.textContent = 'A seleção guiada está temporariamente indisponível; o campo livre continua funcionando.';
+        }
+    }
+
+    function populateChapters() {
+        const book = bibleCatalog.find((item) => item.abbr === $('bible-book').value);
+        resetSelect($('bible-chapter'), 'Capítulo…');
+        resetSelect($('bible-verse-start'), 'Todos');
+        resetSelect($('bible-verse-end'), '—');
+        $('bible-verse-start').disabled = true;
+        $('bible-verse-end').disabled = true;
+        $('apply-bible-selection').disabled = true;
+        if (!book) {
+            $('bible-chapter').disabled = true;
+            return;
+        }
+        for (let chapter = 1; chapter <= book.chapters; chapter += 1) {
+            const option = document.createElement('option');
+            option.value = String(chapter);
+            option.textContent = String(chapter);
+            $('bible-chapter').appendChild(option);
+        }
+        $('bible-chapter').disabled = false;
+    }
+
+    async function populateVerses() {
+        const book = $('bible-book').value;
+        const chapter = $('bible-chapter').value;
+        resetSelect($('bible-verse-start'), 'Todos');
+        resetSelect($('bible-verse-end'), '—');
+        $('bible-verse-start').disabled = true;
+        $('bible-verse-end').disabled = true;
+        $('apply-bible-selection').disabled = !book || !chapter;
+        if (!book || !chapter) return;
+        $('bible-picker-status').textContent = 'Carregando versículos…';
+        try {
+            const query = new URLSearchParams({book, chapter});
+            const response = await fetch(`/api/bible/chapter?${query.toString()}`);
+            const data = await response.json();
+            if (!response.ok || !Array.isArray(data.verses)) throw new Error('chapter');
+            data.verses.forEach((verse) => {
+                for (const select of [$('bible-verse-start'), $('bible-verse-end')]) {
+                    const option = document.createElement('option');
+                    option.value = String(verse.number);
+                    option.textContent = String(verse.number);
+                    select.appendChild(option);
+                }
+            });
+            $('bible-verse-start').disabled = false;
+            $('bible-verse-end').disabled = false;
+            $('bible-picker-status').textContent = `Capítulo carregado · ${data.version || 'NVI'}`;
+        } catch (_error) {
+            $('bible-picker-status').textContent = 'Não foi possível carregar os versículos; ainda é possível selecionar o capítulo inteiro.';
+        }
+    }
+
+    function applyBibleSelection() {
+        const book = bibleCatalog.find((item) => item.abbr === $('bible-book').value);
+        const chapter = $('bible-chapter').value;
+        if (!book || !chapter) return;
+        const start = $('bible-verse-start').value;
+        const end = $('bible-verse-end').value;
+        let reference = `${book.name} ${chapter}`;
+        if (start) {
+            reference += `:${start}`;
+            if (end && Number(end) >= Number(start) && end !== start) reference += `-${end}`;
+        }
+        $('bible-ref').value = reference;
+        scheduleSave();
+        fetchPassage();
     }
 
     document.querySelectorAll('[data-show-tab]').forEach((button) => {
@@ -265,8 +359,18 @@
         clearTimeout(passageTimer);
         passageTimer = setTimeout(fetchPassage, 700);
     });
+    $('bible-book').addEventListener('change', populateChapters);
+    $('bible-chapter').addEventListener('change', populateVerses);
+    $('bible-verse-start').addEventListener('change', () => {
+        const start = Number($('bible-verse-start').value || 0);
+        [...$('bible-verse-end').options].forEach((option) => {
+            option.disabled = Boolean(option.value) && Number(option.value) < start;
+        });
+    });
+    $('apply-bible-selection').addEventListener('click', applyBibleSelection);
 
     const initialPoints = Array.isArray(initialOutline.topicos) && initialOutline.topicos.length ? initialOutline.topicos : [{}];
     initialPoints.forEach(addPoint);
+    loadBibleCatalog();
     if ($('bible-ref').value) fetchPassage();
 })();
