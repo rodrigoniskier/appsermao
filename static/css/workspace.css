@@ -8,13 +8,13 @@ body {
 
 .workspace-header .brand { font-size: 1.05rem; }
 .workspace-header .right { display: flex; align-items: center; gap: 14px; }
-main.workspace-main { flex: 1; overflow: hidden; }
+main.workspace-main { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 
-#tab-research { display: none; height: 100%; }
-#tab-research.active { display: grid; grid-template-columns: minmax(240px, 23%) 1fr minmax(260px, 25%); height: 100%; }
-.column { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-.panel-header { background: var(--bg-panel); padding: 10px; font-size: .8rem; font-weight: 700; text-transform: uppercase; text-align: center; border-bottom: 1px solid var(--border); }
-.input-area { padding: 15px; border-bottom: 1px solid var(--border); background: var(--bg-panel-alt); }
+#tab-research { display: none; height: 100%; min-height: 0; }
+#tab-research.active { display: grid; grid-template-columns: minmax(240px, 23%) 1fr minmax(260px, 25%); height: 100%; min-height: 0; }
+.column { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }
+.panel-header { background: var(--bg-panel); padding: 10px; font-size: .8rem; font-weight: 700; text-transform: uppercase; text-align: center; border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+.input-area { padding: 15px; border-bottom: 1px solid var(--border); background: var(--bg-panel-alt); flex: 0 0 auto; }
 .input-area label { display: block; color: var(--text-muted); font-size: .75rem; margin-bottom: 5px; }
 #bible-ref { width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--accent); color: white; border-radius: 4px; font-weight: 700; }
 .bible-picker { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 9px; }
@@ -23,25 +23,25 @@ main.workspace-main { flex: 1; overflow: hidden; }
 .bible-picker select { width: 100%; min-width: 0; background: var(--bg-dark); border: 1px solid var(--border); color: white; padding: 7px; border-radius: 4px; }
 .bible-picker select:disabled { opacity: .55; }
 .picker-status { color: var(--text-muted); font-size: .7rem; line-height: 1.35; margin-top: 7px; }
-#passage-panel { padding: 10px 15px; font-size: .8rem; color: var(--text-muted); border-bottom: 1px solid var(--border); overflow-y: auto; max-height: 32%; }
+#passage-panel { padding: 10px 15px; font-size: .8rem; color: var(--text-muted); border-bottom: 1px solid var(--border); overflow-y: auto; max-height: 32%; flex: 0 1 auto; overscroll-behavior: contain; }
 #passage-panel[hidden] { display: none; }
 .version-tag { color: var(--gold); font-weight: 700; font-size: .7rem; text-transform: uppercase; }
 .passage-text { margin-top: 6px; white-space: pre-line; }
-.tools-grid { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.tools-grid { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; min-height: 0; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .btn-tool { background: var(--bg-panel); color: white; border: 1px solid var(--border); padding: 10px; text-align: left; border-radius: 4px; cursor: pointer; font-size: .85rem; }
 .btn-tool:hover, .btn-tool:focus-visible { background: var(--accent); border-color: var(--accent); }
 .btn-tool.emphasis { border-color: var(--gold); color: var(--gold); }
-.ai-display { flex: 1; padding: 30px; overflow-y: auto; font-family: Georgia, serif; line-height: 1.8; font-size: 1.05rem; background: #202530; }
+.ai-display { flex: 1 1 auto; min-height: 0; padding: 30px; overflow-y: auto; font-family: Georgia, serif; line-height: 1.8; font-size: 1.05rem; background: #202530; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .ai-display.is-loading { opacity: .55; }
 .ai-display h2, .ai-display h3 { color: #90cdf4; }
-.ai-footer { padding: 10px; background: var(--bg-panel-alt); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.ai-footer { padding: 10px; background: var(--bg-panel-alt); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex: 0 0 auto; }
 #loading { color: var(--gold); font-style: italic; font-size: .85rem; }
-.notes-area { flex: 1; padding: 15px; overflow-y: auto; font-size: .9rem; color: #cbd5e0; }
+.notes-area { flex: 1 1 auto; min-height: 0; padding: 15px; overflow-y: auto; font-size: .9rem; color: #cbd5e0; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .note-item { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed var(--border); }
 .note-tag { color: var(--gold); font-size: .75rem; font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 4px; }
-.action-area { padding: 15px; background: var(--bg-header); border-top: 1px solid var(--border); }
+.action-area { padding: 15px; background: var(--bg-header); border-top: 1px solid var(--border); flex: 0 0 auto; }
 
-#tab-outline { display: none; height: 100%; overflow-y: auto; }
+#tab-outline { display: none; height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 #tab-outline.active { display: block; }
 .form-container { max-width: 920px; margin: 0 auto; padding: 30px 30px 100px; }
 .section-title { color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin: 30px 0 15px; font-size: 1.1rem; font-weight: 700; }
@@ -60,13 +60,14 @@ main.workspace-main { flex: 1; overflow: hidden; }
 
 @media (max-width: 980px) {
     body { overflow: auto; height: auto; min-height: 100dvh; }
-    main.workspace-main { overflow: visible; }
+    main.workspace-main { overflow: visible; min-height: auto; }
     .workspace-header { height: auto; min-height: 54px; padding: 10px 14px; align-items: flex-start; gap: 10px; }
     .workspace-header .right { flex-wrap: wrap; justify-content: flex-end; }
     #tab-research.active { display: flex; flex-direction: column; height: auto; }
-    .column { border-right: 0; border-bottom: 1px solid var(--border); min-height: 380px; }
-    .ai-display { min-height: 360px; }
-    #tab-outline { height: auto; }
+    .column { border-right: 0; border-bottom: 1px solid var(--border); min-height: 380px; overflow: visible; }
+    .ai-display { min-height: 360px; max-height: 70dvh; }
+    .notes-area, .tools-grid { max-height: 60dvh; }
+    #tab-outline { height: auto; overflow: visible; }
     .bible-picker-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
