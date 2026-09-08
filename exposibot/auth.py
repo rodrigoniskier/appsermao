@@ -1,7 +1,7 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
-from exposibot.extensions import db, login_manager
+from exposibot.extensions import db, limiter, login_manager
 from exposibot.models import User
 
 bp = Blueprint("auth", __name__)
@@ -9,10 +9,14 @@ bp = Blueprint("auth", __name__)
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.session.get(User, int(user_id))
+    try:
+        return db.session.get(User, int(user_id))
+    except (TypeError, ValueError):
+        return None
 
 
 @bp.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard.dashboard"))
@@ -24,10 +28,12 @@ def register():
 
         if not name or not email or not password:
             flash("Preencha todos os campos.", "error")
-        elif len(password) < 8:
-            flash("A senha precisa ter ao menos 8 caracteres.", "error")
+        elif len(name) > 120 or len(email) > 255:
+            flash("Nome ou e-mail excede o tamanho permitido.", "error")
+        elif len(password) < 10:
+            flash("A senha precisa ter ao menos 10 caracteres.", "error")
         elif User.query.filter_by(email=email).first():
-            flash("Já existe uma conta com este e-mail.", "error")
+            flash("Não foi possível criar a conta com esses dados.", "error")
         else:
             user = User(name=name, email=email)
             user.set_password(password)
@@ -40,6 +46,7 @@ def register():
 
 
 @bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard.dashboard"))
