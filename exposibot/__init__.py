@@ -1,9 +1,12 @@
 import hmac
+import json
 import os
 import secrets
+import time
+import uuid
 
 from dotenv import load_dotenv
-from flask import Flask, abort, request, session
+from flask import Flask, abort, g, request, session
 
 from exposibot.extensions import db, limiter, login_manager, migrate
 from exposibot.security import render_markdown
@@ -93,29 +96,30 @@ def create_app(test_config=None):
     app.jinja_env.globals["csrf_token"] = _csrf_token
 
     @app.before_request
-    def protect_mutating_requests():
+    def begin_request():
+        g.request_started = time.perf_counter()
+        incoming = request.headers.get("X-Request-ID", "").strip()
+        g.request_id = incoming[:100] if incoming else uuid.uuid4().hex
+
         if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
             return None
 
         expected = session.get("_csrf_token")
-        if request.is_json:
-            supplied = request.headers.get("X-CSRFToken", "")
-        else:
-            supplied = request.form.get("csrf_token", "")
-
+        supplied = (
+            request.headers.get("X-CSRFToken", "")
+            if request.is_json
+            else request.form.get("csrf_token", "")
+        )
         if not expected or not supplied or not hmac.compare_digest(expected, supplied):
             abort(400, description="Token CSRF ausente ou inválido.")
         return None
 
     @app.after_request
-    def add_security_headers(response):
+    def finalize_request(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        response.headers.setdefault(
-            "Permissions-Policy",
-            "camera=(), microphone=(), geolocation=()",
-        )
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         response.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
@@ -125,6 +129,25 @@ def create_app(test_config=None):
         if is_production:
             response.headers.setdefault(
                 "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
+
+        request_id = getattr(g, "request_id", uuid.uuid4().hex)
+        response.headers.setdefault("X-Request-ID", request_id)
+        started = getattr(g, "request_started", None)
+        duration_ms = round((time.perf_counter() - started) * 1000, 1) if started else None
+        if not app.config.get("TESTING"):
+            app.logger.info(
+                json.dumps(
+                    {
+                        "event": "http_request",
+                        "request_id": request_id,
+                        "method": request.method,
+                        "path": request.path,
+                        "status": response.status_code,
+                        "duration_ms": duration_ms,
+                    },
+                    ensure_ascii=False,
+                )
             )
         return response
 
