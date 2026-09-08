@@ -7,6 +7,7 @@ import uuid
 
 from dotenv import load_dotenv
 from flask import Flask, abort, g, request, session
+from sqlalchemy import text
 
 from exposibot.extensions import db, limiter, login_manager, migrate
 from exposibot.security import render_markdown
@@ -70,18 +71,19 @@ def create_app(test_config=None):
     os.makedirs(app.instance_path, exist_ok=True)
 
     is_production = os.getenv("APP_ENV", "").lower() == "production"
+    sqlite_fallback = "sqlite:///" + os.path.join(app.instance_path, "exposibot.db")
+    database_url = (os.getenv("DATABASE_URL") or "").strip() or sqlite_fallback
+    rate_storage = (os.getenv("RATELIMIT_STORAGE_URI") or "").strip() or "memory://"
+
     app.config.update(
         SECRET_KEY=_load_or_create_secret_key(app.instance_path),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=is_production,
         MAX_CONTENT_LENGTH=2 * 1024 * 1024,
-        SQLALCHEMY_DATABASE_URI=os.getenv(
-            "DATABASE_URL",
-            "sqlite:///" + os.path.join(app.instance_path, "exposibot.db"),
-        ),
+        SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        RATELIMIT_STORAGE_URI=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
+        RATELIMIT_STORAGE_URI=rate_storage,
         JSON_SORT_KEYS=False,
     )
     if test_config:
@@ -154,6 +156,15 @@ def create_app(test_config=None):
     @app.get("/healthz")
     def healthz():
         return {"status": "ok"}
+
+    @app.get("/readyz")
+    def readyz():
+        try:
+            db.session.execute(text("SELECT 1"))
+            return {"status": "ready"}
+        except Exception:
+            app.logger.exception("Database readiness check failed")
+            return {"status": "unavailable"}, 503
 
     from exposibot import auth, routes_api, routes_dashboard
 
