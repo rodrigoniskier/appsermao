@@ -34,6 +34,14 @@ class AiServiceTestCase(unittest.TestCase):
         gemini.assert_called_once()
         groq.assert_not_called()
 
+        call = gemini.call_args.kwargs
+        self.assertIn("português brasileiro", call["system_instruction"].lower())
+        self.assertIn("português brasileiro", call["prompt"].lower())
+
+    def test_groq_prompt_requires_ptbr(self):
+        self.assertIn("português brasileiro", ai_service.GROQ_COMPACT_HOMILETICS_PROMPT.lower())
+        self.assertIn("não preencha ict", ai_service.PTBR_OUTPUT_RULE.lower())
+
     def test_groq_retries_with_smaller_budget_after_413(self):
         too_large = RuntimeError("413 Request too large: TPM limit 8000")
         with (
