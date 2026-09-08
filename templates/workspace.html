@@ -2,391 +2,169 @@
 {% block title %}{{ sermon.display_title() }} | Exposibot{% endblock %}
 {% block header %}{% endblock %}
 {% block head %}
-<style>
-    body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-
-    .workspace-header .brand { font-size: 1.05rem; }
-    .workspace-header .right { display: flex; align-items: center; gap: 14px; }
-
-    main.workspace-main { flex: 1; overflow: hidden; }
-
-    /* ---- Aba Pesquisa: layout de 3 colunas ---- */
-    #tab-research { display: none; height: 100%; }
-    #tab-research.active { display: grid; grid-template-columns: 22% 53% 25%; height: 100%; }
-
-    .column { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: 100%; }
-    .panel-header { background: var(--bg-panel); padding: 10px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; text-align: center; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-
-    .input-area { padding: 15px; border-bottom: 1px solid var(--border); background: var(--bg-panel-alt); }
-    .input-area label { display: block; color: var(--text-muted); font-size: 0.75rem; margin-bottom: 5px; }
-    #bible-ref { width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--accent); color: white; border-radius: 4px; font-weight: bold; }
-
-    #passage-panel { padding: 10px 15px; font-size: 0.8rem; color: var(--text-muted); border-bottom: 1px solid var(--border); overflow-y: auto; max-height: 30%; display: none; }
-    #passage-panel.visible { display: block; }
-    #passage-panel .version-tag { color: var(--gold); font-weight: bold; font-size: 0.7rem; text-transform: uppercase; }
-
-    .tools-grid { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-    .btn-tool { background: var(--bg-panel); color: white; border: 1px solid var(--border); padding: 10px; text-align: left; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
-    .btn-tool:hover { background: var(--accent); border-color: var(--accent); }
-
-    .ai-display { flex: 1; padding: 30px; overflow-y: auto; font-family: 'Georgia', serif; line-height: 1.8; font-size: 1.05rem; background: #202530; }
-    .ai-display h2 { color: #90cdf4; border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-top: 20px; }
-    .ai-display strong { color: white; }
-    .ai-footer { padding: 10px; background: var(--bg-panel-alt); border-top: 1px solid var(--border); text-align: right; display: flex; justify-content: space-between; align-items: center; }
-    #loading { display: none; color: var(--gold); font-style: italic; font-size: 0.85rem; }
-
-    .notes-area { flex: 1; padding: 15px; overflow-y: auto; font-size: 0.9rem; color: #cbd5e0; }
-    .note-item { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed var(--border); }
-    .note-tag { color: var(--gold); font-size: 0.75rem; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 4px; }
-    .action-area { padding: 15px; background: var(--bg-header); border-top: 1px solid var(--border); text-align: center; }
-
-    /* ---- Aba Esboço ---- */
-    #tab-outline { display: none; height: 100%; overflow-y: auto; }
-    #tab-outline.active { display: block; }
-    .form-container { max-width: 800px; margin: 0 auto; padding: 30px; padding-bottom: 100px; }
-    .section-title { color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin: 30px 0 15px 0; font-size: 1.1rem; font-weight: bold; }
-    .sermon-point { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--gold); }
-    .btn-ai-suggest { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/workspace.css') }}">
 {% endblock %}
 {% block content %}
-<header class="app-header workspace-header">
-    <div class="brand">
-        <a href="{{ url_for('dashboard.dashboard') }}" style="color: var(--text-muted);">← Meus Sermões</a>
-        &nbsp;/&nbsp;{{ sermon.display_title() }}
-    </div>
-    <div class="right">
-        <span id="autosave-indicator"></span>
-        <div class="tabs">
-            <button type="button" class="tab-btn active" data-tab="research" onclick="showTab('research')">1. Pesquisa</button>
-            <button type="button" class="tab-btn" data-tab="outline" onclick="showTab('outline')">2. Esboço</button>
+<div id="workspace-app" data-sermon-id="{{ sermon.id }}" data-csrf-token="{{ csrf_token() }}">
+    <header class="app-header workspace-header">
+        <div class="brand">
+            <a href="{{ url_for('dashboard.dashboard') }}">← Meus Sermões</a>
+            <span>/ {{ sermon.display_title() }}</span>
         </div>
-        <a class="btn btn-gold" href="{{ url_for('dashboard.preview', sermon_id=sermon.id) }}" target="_blank">Preview / Baixar 📄</a>
-    </div>
-</header>
-
-<main class="workspace-main">
-    <section id="tab-research" class="tab-panel active">
-        <div class="column">
-            <div class="panel-header">Texto e Ferramentas</div>
-            <div class="input-area">
-                <label>REFERÊNCIA BÍBLICA</label>
-                <input type="text" id="bible-ref" placeholder="Ex: Romanos 8:28-30" value="{{ sermon.reference or '' }}">
+        <div class="right">
+            <span id="autosave-indicator" aria-live="polite"></span>
+            <div class="tabs" role="tablist" aria-label="Etapas do sermão">
+                <button type="button" class="tab-btn active" data-tab="research" data-show-tab="research">1. Pesquisa</button>
+                <button type="button" class="tab-btn" data-tab="outline" data-show-tab="outline">2. Esboço</button>
             </div>
-            <div id="passage-panel"></div>
-            <div class="tools-grid">
-                <button class="btn-tool" onclick="analisar('Dados Geográficos')">📍 Geografia</button>
-                <button class="btn-tool" onclick="analisar('Perfil Biográfico')">👤 Biografia</button>
-                <button class="btn-tool" onclick="analisar('Contexto Histórico')">📜 Histórico</button>
-                <button class="btn-tool" onclick="analisar('Contexto Canônico')">🔗 Canônico</button>
-                <button class="btn-tool" onclick="analisar('Estilo Literário')">✍️ Literário</button>
-                <button class="btn-tool" onclick="analisar('Contexto Político')">🏛️ Político</button>
-                <button class="btn-tool" onclick="analisar('Sócio-Cultural')">🏺 Sócio-Cultural</button>
-                <button class="btn-tool" onclick="analisar('Contexto Filosófico')">🧠 Filosófico</button>
-                <button class="btn-tool" onclick="analisar('Teologia Sistemática')">✝️ Sistemática</button>
-                <button class="btn-tool" onclick="analisar('Foco Cristocêntrico')">🩸 Cristocêntrico</button>
-                <button class="btn-tool" style="border-color: var(--gold); color: var(--gold);" onclick="analisar('Exegese (BHS/UBS5)')">🔍 Exegese Técnica</button>
-            </div>
+            <a class="btn btn-gold" href="{{ url_for('dashboard.preview', sermon_id=sermon.id) }}" target="_blank" rel="noopener">Preview / Baixar</a>
         </div>
+    </header>
 
-        <div class="column">
-            <div class="panel-header">Resultado da Análise</div>
-            <div class="ai-display" id="ai-output">
-                <div style="text-align: center; color: var(--text-muted); margin-top: 50px;">
+    <main class="workspace-main">
+        <section id="tab-research" class="tab-panel active">
+            <div class="column">
+                <div class="panel-header">Texto e Ferramentas</div>
+                <div class="input-area">
+                    <label for="bible-ref">Referência bíblica</label>
+                    <input type="text" id="bible-ref" placeholder="Ex.: Romanos 8:28-30" value="{{ sermon.reference or '' }}" autocomplete="off">
+                    <details class="bible-picker">
+                        <summary>Selecionar livro, capítulo e versículos</summary>
+                        <div class="bible-picker-grid">
+                            <div>
+                                <label for="bible-book">Livro</label>
+                                <select id="bible-book"><option value="">Selecione…</option></select>
+                            </div>
+                            <div>
+                                <label for="bible-chapter">Capítulo</label>
+                                <select id="bible-chapter" disabled><option value="">—</option></select>
+                            </div>
+                            <div>
+                                <label for="bible-verse-start">Verso inicial</label>
+                                <select id="bible-verse-start" disabled><option value="">Todos</option></select>
+                            </div>
+                            <div>
+                                <label for="bible-verse-end">Verso final</label>
+                                <select id="bible-verse-end" disabled><option value="">—</option></select>
+                            </div>
+                        </div>
+                        <button type="button" id="apply-bible-selection" class="btn btn-muted full-width" disabled>Usar esta passagem</button>
+                        <p class="picker-status" id="bible-picker-status" aria-live="polite"></p>
+                    </details>
+                </div>
+                <div id="passage-panel" hidden></div>
+                <div class="tools-grid">
+                    {% for tipo, label in [
+                        ('Dados Geográficos', '📍 Geografia'),
+                        ('Perfil Biográfico', '👤 Biografia'),
+                        ('Contexto Histórico', '📜 Histórico'),
+                        ('Contexto Canônico', '🔗 Canônico'),
+                        ('Estilo Literário', '✍️ Literário'),
+                        ('Contexto Político', '🏛️ Político'),
+                        ('Sócio-Cultural', '🏺 Sócio-Cultural'),
+                        ('Contexto Filosófico', '🧠 Filosófico'),
+                        ('Teologia Sistemática', 'Teologia Sistemática'),
+                        ('Foco Cristocêntrico', 'Foco Cristocêntrico')
+                    ] %}
+                    <button type="button" class="btn-tool" data-analysis-type="{{ tipo }}">{{ label }}</button>
+                    {% endfor %}
+                    <button type="button" class="btn-tool emphasis" data-analysis-type="Exegese (BHS/UBS5)">🔍 Exegese Técnica</button>
+                </div>
+            </div>
+
+            <div class="column">
+                <div class="panel-header">Resultado da Análise</div>
+                <div class="ai-display" id="ai-output" aria-live="polite">
                     <p>Digite a referência à esquerda e selecione uma lente de análise.</p>
                 </div>
-            </div>
-            <div class="ai-footer">
-                <span id="loading">Consultando Padrões Reformados...</span>
-                <button class="btn btn-accent" onclick="incorporar()">Incorporar às Notas →</button>
-            </div>
-        </div>
-
-        <div class="column">
-            <div class="panel-header">Material Coletado</div>
-            <div class="notes-area" id="staged-content">
-                {% for note in sermon.research_notes or [] %}
-                <div class="note-item"><span class="note-tag">[{{ note.tipo }}]</span> {{ note.markdown | markdown }}</div>
-                {% endfor %}
-            </div>
-            <div class="action-area">
-                <button class="btn btn-success" style="width:100%;" onclick="showTab('outline')">IR PARA ESBOÇO ➜</button>
-            </div>
-        </div>
-    </section>
-
-    <section id="tab-outline" class="tab-panel">
-        <div class="form-container">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div class="section-title" style="margin-top:0; border:none;">Estrutura Fundamental</div>
-                <button type="button" class="btn btn-ai-suggest" onclick="suggestSermon()">✨ Sugestão da IA</button>
-            </div>
-
-            <div class="form-group">
-                <label>Ideia Central do Texto (ICT)</label>
-                <input type="text" id="ict" oninput="scheduleSave()" value="{{ sermon.outline.get('ict', '') }}" placeholder="O que o texto dizia para os leitores originais?">
-            </div>
-            <div class="form-group">
-                <label>Tese / Proposição</label>
-                <input type="text" id="tese" oninput="scheduleSave()" value="{{ sermon.outline.get('tese', '') }}" placeholder="A verdade atemporal para a audiência de hoje">
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div class="form-group">
-                    <label>Propósito Básico</label>
-                    <select id="prop_basico" onchange="scheduleSave()">
-                        <option value="">Selecione...</option>
-                        {% for opt in ['Doutrinário', 'Evangelístico', 'Consolação', 'Ético/Moral', 'Consagração'] %}
-                        <option {{ 'selected' if sermon.outline.get('proposito_basico') == opt else '' }}>{{ opt }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Propósito Específico</label>
-                    <input type="text" id="prop_especifico" oninput="scheduleSave()" value="{{ sermon.outline.get('proposito_especifico', '') }}" placeholder="O que espera que a igreja faça?">
+                <div class="ai-footer">
+                    <span id="loading" hidden>Consultando fontes…</span>
+                    <button type="button" id="incorporate-note" class="btn btn-accent">Incorporar às notas →</button>
                 </div>
             </div>
 
-            <div class="section-title">Corpo do Sermão</div>
-
-            <div class="form-group">
-                <label>Introdução</label>
-                <textarea id="intro" oninput="scheduleSave()" placeholder="Gancho, Contexto e Transição...">{{ sermon.outline.get('intro', '') }}</textarea>
+            <div class="column">
+                <div class="panel-header">Material Coletado</div>
+                <div class="notes-area" id="staged-content">
+                    {% for note in sermon.research_notes or [] %}
+                    <div class="note-item">
+                        <span class="note-tag">[{{ note.tipo }}]</span>
+                        <div class="note-body">{{ note.markdown | markdown }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="action-area">
+                    <button type="button" class="btn btn-success full-width" data-show-tab="outline">Ir para esboço ➜</button>
+                </div>
             </div>
+        </section>
 
-            <div id="points-container"></div>
+        <section id="tab-outline" class="tab-panel">
+            <div class="form-container">
+                <div class="section-head">
+                    <div class="section-title first">Estrutura Fundamental</div>
+                    <button type="button" id="suggest-sermon" class="btn btn-ai-suggest">✨ Sugestão da IA</button>
+                </div>
 
-            <button type="button" class="btn btn-muted" style="width:100%; margin-bottom:20px;" onclick="addPoint()">+ Adicionar Tópico</button>
+                <div class="form-group">
+                    <label for="ict">Ideia Central do Texto (ICT)</label>
+                    <input type="text" id="ict" data-save-field value="{{ sermon.outline.get('ict', '') }}" placeholder="O que o autor comunicou aos primeiros destinatários?">
+                </div>
+                <div class="form-group">
+                    <label for="tese">Tese / Proposição</label>
+                    <input type="text" id="tese" data-save-field value="{{ sermon.outline.get('tese', '') }}" placeholder="A mesma verdade contextualizada para hoje">
+                </div>
+                <div class="form-group">
+                    <label for="fcd">Foco da Condição Decaída (FCD)</label>
+                    <textarea id="fcd" data-save-field rows="3" placeholder="Qual condição humana torna esta passagem necessária?">{{ sermon.outline.get('fcd', '') }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="proposito-redentivo">Propósito redentivo</label>
+                    <textarea id="proposito-redentivo" data-save-field rows="3" placeholder="Como a graça de Deus responde ao FCD e conduz legitimamente a Cristo?">{{ sermon.outline.get('proposito_redentivo', '') }}</textarea>
+                </div>
 
-            <div class="form-group">
-                <label>Conclusão</label>
-                <textarea id="conclusao" oninput="scheduleSave()" placeholder="Recapitulação e Apelo Final...">{{ sermon.outline.get('conclusao', '') }}</textarea>
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label for="prop-basico">Propósito Básico</label>
+                        <select id="prop-basico" data-save-field>
+                            <option value="">Selecione…</option>
+                            {% for opt in ['Evangelístico', 'Devocional', 'Missionário/Consagratório', 'Pastoral/Consolador', 'Ético', 'Doutrinário'] %}
+                            <option value="{{ opt }}" {{ 'selected' if sermon.outline.get('proposito_basico') == opt else '' }}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="prop-especifico">Propósito Específico</label>
+                        <input type="text" id="prop-especifico" data-save-field value="{{ sermon.outline.get('proposito_especifico', '') }}" placeholder="Que resposta se espera dos ouvintes?">
+                    </div>
+                </div>
+
+                <div class="section-title">Corpo do Sermão</div>
+                <div class="form-group">
+                    <label for="intro">Introdução</label>
+                    <textarea id="intro" data-save-field rows="5" placeholder="Necessidade, tensão e condução à tese">{{ sermon.outline.get('intro', '') }}</textarea>
+                </div>
+
+                <div id="points-container"></div>
+                <button type="button" id="add-point" class="btn btn-muted full-width">+ Adicionar tópico</button>
+
+                <div class="section-title">Cristo e conclusão</div>
+                <div class="form-group">
+                    <label for="conexao-cristocentrica">Conexão Cristocêntrica</label>
+                    <textarea id="conexao-cristocentrica" data-save-field rows="4" placeholder="Conexão legítima da passagem com Cristo">{{ sermon.outline.get('conexao_cristocentrica', '') }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="conclusao">Conclusão</label>
+                    <textarea id="conclusao" data-save-field rows="5" placeholder="Retome a tese e conduza à resposta na graça">{{ sermon.outline.get('conclusao', '') }}</textarea>
+                </div>
             </div>
-        </div>
-    </section>
-</main>
+        </section>
+    </main>
+
+    <textarea id="initial-research" hidden>{{ (sermon.research_notes or []) | tojson }}</textarea>
+    <textarea id="initial-outline" hidden>{{ (sermon.outline or {}) | tojson }}</textarea>
+</div>
 {% endblock %}
-
 {% block scripts %}
-<script>
-    const SERMON_ID = {{ sermon.id }};
-    let researchNotes = {{ (sermon.research_notes or []) | tojson }};
-    const initialTopicos = {{ (sermon.outline.get('topicos', []) if sermon.outline else []) | tojson }};
-    let lastRaw = "", lastHtml = "", lastType = "";
-    let saveTimer = null;
-    let passageTimer = null;
-
-    function showTab(tab) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-        document.getElementById('tab-research').classList.toggle('active', tab === 'research');
-        document.getElementById('tab-outline').classList.toggle('active', tab === 'outline');
-    }
-
-    function collectOutline() {
-        const topicos = [];
-        document.querySelectorAll('.sermon-point').forEach(el => {
-            topicos.push({
-                titulo: el.querySelector('[data-field=titulo]').value,
-                explicacao: el.querySelector('[data-field=explicacao]').value,
-                ilustracao: el.querySelector('[data-field=ilustracao]').value,
-                aplicacao: el.querySelector('[data-field=aplicacao]').value,
-            });
-        });
-        return {
-            ict: document.getElementById('ict').value,
-            tese: document.getElementById('tese').value,
-            proposito_basico: document.getElementById('prop_basico').value,
-            proposito_especifico: document.getElementById('prop_especifico').value,
-            intro: document.getElementById('intro').value,
-            topicos: topicos,
-            conclusao: document.getElementById('conclusao').value,
-        };
-    }
-
-    function scheduleSave() {
-        const el = document.getElementById('autosave-indicator');
-        el.textContent = 'Alterações pendentes...';
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(saveSermon, 900);
-    }
-
-    async function saveSermon() {
-        const indicator = document.getElementById('autosave-indicator');
-        indicator.textContent = 'Salvando...';
-        try {
-            const res = await fetch(`/api/sermons/${SERMON_ID}`, {
-                method: 'PATCH',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    reference: document.getElementById('bible-ref').value,
-                    research_notes: researchNotes,
-                    outline: collectOutline(),
-                })
-            });
-            if (!res.ok) throw new Error('save failed');
-            indicator.textContent = 'Salvo às ' + new Date().toLocaleTimeString('pt-BR');
-        } catch (e) {
-            indicator.textContent = 'Erro ao salvar (verifique a conexão)';
-        }
-    }
-
-    function addPoint(data = null) {
-        const container = document.getElementById('points-container');
-        const div = document.createElement('div');
-        div.className = 'sermon-point';
-        const val = data || { titulo: '', explicacao: '', ilustracao: '', aplicacao: '' };
-        div.innerHTML = `
-            <div class="form-group">
-                <label style="color:var(--gold); font-weight:bold;">Título do Tópico</label>
-                <input type="text" data-field="titulo" oninput="scheduleSave()" value="${val.titulo || ''}" placeholder="Divisão do texto">
-            </div>
-            <div class="form-group">
-                <label>Explicação (Exegese)</label>
-                <textarea data-field="explicacao" rows="4" oninput="scheduleSave()">${val.explicacao || ''}</textarea>
-            </div>
-            <div class="form-group">
-                <label>Ilustração</label>
-                <textarea data-field="ilustracao" rows="2" oninput="scheduleSave()" placeholder="Metáfora ou história breve">${val.ilustracao || ''}</textarea>
-            </div>
-            <div class="form-group">
-                <label>Aplicação</label>
-                <textarea data-field="aplicacao" rows="2" oninput="scheduleSave()" placeholder="Como isso muda a vida do ouvinte?">${val.aplicacao || ''}</textarea>
-            </div>
-            <div style="text-align:right;">
-                <button type="button" onclick="this.closest('.sermon-point').remove(); scheduleSave();" style="background:transparent; border:none; color:#fc8181; cursor:pointer; font-size:0.8rem;">Excluir Tópico</button>
-            </div>
-        `;
-        container.appendChild(div);
-    }
-
-    if (initialTopicos.length) {
-        initialTopicos.forEach(t => addPoint(t));
-    } else {
-        addPoint();
-    }
-
-    async function analisar(tipo) {
-        const ref = document.getElementById('bible-ref').value;
-        if (!ref) { alert('Digite a referência bíblica.'); return; }
-
-        document.getElementById('loading').style.display = 'inline';
-        document.getElementById('ai-output').style.opacity = '0.5';
-
-        try {
-            const req = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ texto: ref, tipo: tipo })
-            });
-            const res = await req.json();
-
-            if (res.error) {
-                document.getElementById('ai-output').innerHTML = `<span style="color:#fc8181">${res.error}</span>`;
-            } else {
-                document.getElementById('ai-output').innerHTML = res.html;
-                lastRaw = res.markdown;
-                lastHtml = res.html;
-                lastType = tipo;
-            }
-        } catch (e) {
-            document.getElementById('ai-output').innerText = 'Erro de conexão.';
-        } finally {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('ai-output').style.opacity = '1';
-        }
-    }
-
-    function incorporar() {
-        if (!lastRaw) return;
-        researchNotes.push({ tipo: lastType, markdown: lastRaw });
-        const area = document.getElementById('staged-content');
-        const div = document.createElement('div');
-        div.className = 'note-item';
-        div.innerHTML = `<span class="note-tag">[${lastType}]</span> ${lastHtml}`;
-        area.appendChild(div);
-        area.scrollTop = area.scrollHeight;
-        scheduleSave();
-    }
-
-    async function suggestSermon() {
-        const notesText = researchNotes.map(n => `[${n.tipo}]\n${n.markdown}`).join('\n\n');
-        const ref = document.getElementById('bible-ref').value;
-        const btn = document.querySelector('.btn-ai-suggest');
-
-        if (notesText.trim().length < 50) {
-            if (!confirm('Você tem poucas notas de pesquisa. A IA pode não ser tão precisa. Deseja continuar mesmo assim?')) return;
-        }
-
-        btn.disabled = true;
-        btn.textContent = '⏳ Estruturando sermão...';
-
-        try {
-            const response = await fetch('/api/suggest_sermon', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notes: notesText, reference: ref })
-            });
-            const data = await response.json();
-
-            if (data.error) {
-                alert('Erro na IA: ' + data.error);
-            } else {
-                document.getElementById('ict').value = data.ict || '';
-                document.getElementById('tese').value = data.tese || '';
-                document.getElementById('prop_especifico').value = data.proposito_especifico || '';
-                document.getElementById('intro').value = data.intro || '';
-                document.getElementById('conclusao').value = data.conclusao || '';
-
-                const sel = document.getElementById('prop_basico');
-                for (let i = 0; i < sel.options.length; i++) {
-                    if (sel.options[i].text.includes(data.proposito_basico || '')) {
-                        sel.selectedIndex = i;
-                        break;
-                    }
-                }
-
-                const container = document.getElementById('points-container');
-                container.innerHTML = '';
-                if (data.topicos && Array.isArray(data.topicos) && data.topicos.length) {
-                    data.topicos.forEach(point => addPoint(point));
-                } else {
-                    addPoint();
-                }
-                scheduleSave();
-            }
-        } catch (e) {
-            alert('Erro de conexão: ' + e);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = '✨ Sugestão da IA';
-        }
-    }
-
-    document.getElementById('bible-ref').addEventListener('input', () => {
-        scheduleSave();
-        clearTimeout(passageTimer);
-        passageTimer = setTimeout(fetchPassage, 700);
-    });
-
-    async function fetchPassage() {
-        const ref = document.getElementById('bible-ref').value.trim();
-        const panel = document.getElementById('passage-panel');
-        if (!ref) { panel.classList.remove('visible'); return; }
-        try {
-            const res = await fetch('/api/passage?ref=' + encodeURIComponent(ref));
-            const data = await res.json();
-            if (data && data.text) {
-                panel.innerHTML = `<span class="version-tag">${data.version}</span><div style="margin-top:6px; white-space:pre-line;">${data.text}</div>`;
-                panel.classList.add('visible');
-            } else {
-                panel.classList.remove('visible');
-            }
-        } catch (e) {
-            panel.classList.remove('visible');
-        }
-    }
-
-    if (document.getElementById('bible-ref').value) {
-        fetchPassage();
-    }
-</script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}" defer></script>
 {% endblock %}

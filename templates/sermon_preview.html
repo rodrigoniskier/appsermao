@@ -1,106 +1,76 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visualização do Sermão | Exposibot</title>
     <style>
-        body {
-            background-color: #f7fafc;
-            color: #1a202c;
-            font-family: 'Georgia', serif;
-            line-height: 1.8;
-            padding: 40px;
-            display: flex;
-            justify-content: center;
-        }
-        .paper {
-            background: white;
-            width: 100%;
-            max-width: 800px;
-            padding: 60px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border: 1px solid #e2e8f0;
-        }
-        h1 { text-align: center; color: #2d3748; font-size: 2rem; margin-bottom: 10px; }
-        .meta-info { background: #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 30px; font-family: sans-serif; font-size: 0.9rem;}
-        .meta-row { display: flex; gap: 20px; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #cbd5e0; padding-bottom: 5px;}
-        .meta-row span:last-child { text-align: right; }
-        .meta-label { font-weight: bold; color: #4a5568; flex: 0 0 180px; }
-
-        h2 { color: #2c5282; border-bottom: 2px solid #2c5282; padding-bottom: 5px; margin-top: 30px; font-size: 1.4rem;}
-        h3 { color: #2b6cb0; margin-top: 20px; font-size: 1.2rem; }
-
-        .point-block { margin-bottom: 28px; padding-left: 15px; border-left: 4px solid #bee3f8; }
-        .text-anchor { font-family: sans-serif; font-size: 0.88rem; font-weight: bold; color: #4a5568; }
-        .illustration { font-style: italic; color: #718096; margin: 10px 0; display: block; }
-        .application { font-weight: bold; color: #2f855a; }
-        .transition { font-family: sans-serif; font-size: 0.88rem; color: #4a5568; }
-        .redemptive-box { background: #fffaf0; border-left: 4px solid #d69e2e; padding: 14px 18px; margin: 20px 0; }
-
-        .toolbar {
-            position: fixed; top: 0; left: 0; width: 100%; background: #1a202c; padding: 10px;
-            display: flex; justify-content: center; gap: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        .btn { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase; text-decoration: none; display: inline-block; }
-        .btn-download { background-color: #d69e2e; color: #1a202c; }
-        .btn-back { background-color: #4a5568; color: white; }
-
-        @media print {
-            .toolbar { display: none; }
-            body { background: white; padding: 0; }
-            .paper { box-shadow: none; border: none; width: 100%; max-width: 100%; padding: 20px;}
-        }
+        body { background-color:#f7fafc; color:#1a202c; font-family:Georgia,serif; line-height:1.8; padding:40px; display:flex; justify-content:center; }
+        .paper { background:white; width:100%; max-width:800px; padding:60px; box-shadow:0 4px 6px rgba(0,0,0,.1); border:1px solid #e2e8f0; }
+        h1 { text-align:center; color:#2d3748; font-size:2rem; margin-bottom:10px; }
+        .meta-info { background:#edf2f7; padding:15px; border-radius:8px; margin-bottom:30px; font-family:sans-serif; font-size:.9rem; }
+        .meta-row { display:flex; gap:20px; justify-content:space-between; margin-bottom:5px; border-bottom:1px solid #cbd5e0; padding-bottom:5px; }
+        .meta-row span:last-child { text-align:right; }
+        .meta-label { font-weight:bold; color:#4a5568; flex:0 0 180px; }
+        h2 { color:#2c5282; border-bottom:2px solid #2c5282; padding-bottom:5px; margin-top:30px; font-size:1.4rem; }
+        h3 { color:#2b6cb0; margin-top:20px; font-size:1.2rem; }
+        .point-block { margin-bottom:28px; padding-left:15px; border-left:4px solid #bee3f8; }
+        .text-anchor { font-family:sans-serif; font-size:.88rem; font-weight:bold; color:#4a5568; }
+        .illustration { font-style:italic; color:#718096; margin:10px 0; display:block; }
+        .application { font-weight:bold; color:#2f855a; }
+        .transition { font-family:sans-serif; font-size:.88rem; color:#4a5568; }
+        .redemptive-box { background:#fffaf0; border-left:4px solid #d69e2e; padding:14px 18px; margin:20px 0; }
+        .toolbar { position:fixed; top:0; left:0; width:100%; background:#1a202c; padding:10px; display:flex; justify-content:center; gap:15px; box-shadow:0 2px 4px rgba(0,0,0,.2); z-index:10; }
+        .btn { padding:8px 20px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; text-transform:uppercase; text-decoration:none; display:inline-block; }
+        .btn-download { background-color:#d69e2e; color:#1a202c; }
+        .btn-back { background-color:#4a5568; color:white; }
+        @media (max-width:700px) { body { padding:70px 12px 20px; } .paper { padding:28px 20px; } .toolbar { flex-wrap:wrap; } .meta-row { flex-direction:column; gap:2px; } .meta-row span:last-child { text-align:left; } }
+        @media print { .toolbar { display:none; } body { background:white; padding:0; } .paper { box-shadow:none; border:none; width:100%; max-width:100%; padding:20px; } }
     </style>
 </head>
 <body>
-
     <div class="toolbar">
-        <a class="btn btn-back" href="{{ url_for('dashboard.workspace', sermon_id=sermon.id) }}">← Voltar ao Workspace</a>
-        <button class="btn" onclick="window.print()">🖨️ Imprimir / PDF</button>
-        <a class="btn btn-download" href="{{ url_for('dashboard.download_docx', sermon_id=sermon.id) }}">💾 Baixar DOCX</a>
-        <a class="btn btn-download" href="{{ url_for('dashboard.download_md', sermon_id=sermon.id) }}">💾 Baixar Markdown</a>
+        <a class="btn btn-back" href="{{ url_for('dashboard.workspace', sermon_id=sermon.id) }}">← Voltar</a>
+        <button type="button" class="btn" data-print>Imprimir / PDF</button>
+        <a class="btn btn-download" href="{{ url_for('dashboard.download_docx', sermon_id=sermon.id) }}">Baixar DOCX</a>
+        <a class="btn btn-download" href="{{ url_for('dashboard.download_md', sermon_id=sermon.id) }}">Baixar Markdown</a>
     </div>
 
-    <div class="paper">
+    <article class="paper">
         <h1>Esboço de Pregação Expositiva</h1>
-
         <div class="meta-info">
-            <div class="meta-row"><span class="meta-label">Texto Base:</span> <span>{{ sermon.reference }}</span></div>
-            <div class="meta-row"><span class="meta-label">Ideia Central (ICT):</span> <span>{{ outline.get('ict', '') }}</span></div>
-            <div class="meta-row"><span class="meta-label">Tese:</span> <span>{{ outline.get('tese', '') }}</span></div>
-            {% if outline.get('fcd') %}<div class="meta-row"><span class="meta-label">FCD:</span> <span>{{ outline.get('fcd', '') }}</span></div>{% endif %}
-            <div class="meta-row"><span class="meta-label">Propósito:</span> <span>{{ outline.get('proposito_basico', '') }} — {{ outline.get('proposito_especifico', '') }}</span></div>
+            <div class="meta-row"><span class="meta-label">Texto Base:</span><span>{{ sermon.reference }}</span></div>
+            <div class="meta-row"><span class="meta-label">Ideia Central (ICT):</span><span>{{ outline.get('ict', '') }}</span></div>
+            <div class="meta-row"><span class="meta-label">Tese:</span><span>{{ outline.get('tese', '') }}</span></div>
+            {% if outline.get('fcd') %}<div class="meta-row"><span class="meta-label">FCD:</span><span>{{ outline.get('fcd', '') }}</span></div>{% endif %}
+            <div class="meta-row"><span class="meta-label">Propósito:</span><span>{{ outline.get('proposito_basico', '') }} — {{ outline.get('proposito_especifico', '') }}</span></div>
         </div>
 
-        {% if outline.get('proposito_redentivo') %}
-            <div class="redemptive-box"><strong>Propósito redentivo:</strong> {{ outline.get('proposito_redentivo', '') }}</div>
-        {% endif %}
+        {% if outline.get('proposito_redentivo') %}<div class="redemptive-box"><strong>Propósito redentivo:</strong> {{ outline.get('proposito_redentivo', '') }}</div>{% endif %}
 
         <h2>Introdução</h2>
         <p>{{ outline.get('intro', '') }}</p>
 
         <h2>Desenvolvimento</h2>
         {% for topico in topicos %}
-            <div class="point-block">
-                <h3>{{ loop.index }}. {{ topico.get('titulo', '') }}</h3>
-                {% if topico.get('texto_base') %}<p class="text-anchor">Texto: {{ topico.get('texto_base', '') }}</p>{% endif %}
-                <p><strong>Elucidação:</strong> {{ topico.get('explicacao', '') }}</p>
-                {% if topico.get('ilustracao') %}
-                    <span class="illustration">💡 Ilustração: {{ topico.get('ilustracao', '') }}</span>
-                {% endif %}
-                <p class="application">⚡ Aplicação: {{ topico.get('aplicacao', '') }}</p>
-                {% if topico.get('transicao') %}<p class="transition"><strong>Transição:</strong> {{ topico.get('transicao', '') }}</p>{% endif %}
-            </div>
+        <section class="point-block">
+            <h3>{{ loop.index }}. {{ topico.get('titulo', '') }}</h3>
+            {% if topico.get('texto_base') %}<p class="text-anchor">Texto: {{ topico.get('texto_base', '') }}</p>{% endif %}
+            <p><strong>Elucidação:</strong> {{ topico.get('explicacao', '') }}</p>
+            {% if topico.get('ilustracao') %}<span class="illustration">Ilustração: {{ topico.get('ilustracao', '') }}</span>{% endif %}
+            <p class="application">Aplicação: {{ topico.get('aplicacao', '') }}</p>
+            {% if topico.get('transicao') %}<p class="transition"><strong>Transição:</strong> {{ topico.get('transicao', '') }}</p>{% endif %}
+        </section>
         {% endfor %}
 
         {% if outline.get('conexao_cristocentrica') %}
-            <h2>Conexão Cristocêntrica</h2>
-            <div class="redemptive-box">{{ outline.get('conexao_cristocentrica', '') }}</div>
+        <h2>Conexão Cristocêntrica</h2>
+        <div class="redemptive-box">{{ outline.get('conexao_cristocentrica', '') }}</div>
         {% endif %}
 
         <h2>Conclusão</h2>
         <p>{{ outline.get('conclusao', '') }}</p>
-    </div>
-
+    </article>
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </body>
 </html>

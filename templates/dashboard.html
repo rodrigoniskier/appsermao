@@ -19,7 +19,7 @@
             <div class="actions">
                 <a class="btn btn-accent" href="{{ url_for('dashboard.workspace', sermon_id=sermon.id) }}">Abrir</a>
                 <form method="POST" action="{{ url_for('dashboard.delete_sermon', sermon_id=sermon.id) }}"
-                      onsubmit="return confirm('Excluir este sermão? Essa ação não pode ser desfeita.');">
+                      data-confirm="Excluir este sermão? Essa ação não pode ser desfeita.">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-muted">Excluir</button>
                 </form>

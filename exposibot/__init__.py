@@ -1,33 +1,39 @@
 import hmac
+import json
 import os
 import secrets
+import time
+import uuid
 
-import markdown as md
 from dotenv import load_dotenv
-from flask import Flask, abort, request, session
-from markupsafe import Markup, escape
+from flask import Flask, abort, g, request, session
+from sqlalchemy import text
 
-from exposibot.extensions import db, login_manager
+from exposibot.extensions import db, limiter, login_manager, migrate
+from exposibot.security import render_markdown
+
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _load_environment():
-    # Caminho usado no PythonAnywhere (Essencial no PythonAnywhere).
     pa_env = os.path.join(os.path.expanduser("~/mysite"), ".env")
     if os.path.exists(pa_env):
         load_dotenv(pa_env)
     else:
-        load_dotenv()  # fallback: .env no diretório de trabalho (dev local)
+        load_dotenv()
 
 
 def _load_or_create_secret_key(instance_path):
-    """Obtém a SECRET_KEY sem recorrer a um valor público e previsível."""
     configured_key = os.getenv("SECRET_KEY")
     if configured_key:
         return configured_key
 
+    if os.getenv("APP_ENV", "").lower() == "production":
+        raise RuntimeError("SECRET_KEY é obrigatória quando APP_ENV=production.")
+
     os.makedirs(instance_path, exist_ok=True)
     key_path = os.path.join(instance_path, ".secret_key")
-
     try:
         with open(key_path, "r", encoding="utf-8") as key_file:
             existing_key = key_file.read().strip()
@@ -43,7 +49,6 @@ def _load_or_create_secret_key(instance_path):
         os.chmod(key_path, 0o600)
     except OSError:
         pass
-
     return generated_key
 
 
@@ -55,16 +60,7 @@ def _csrf_token():
     return token
 
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
 def create_app(test_config=None):
-    """Cria a aplicação Flask.
-
-    ``test_config`` permite substituir configurações em testes sem alterar o
-    comportamento de produção. Em produção, ``create_app()`` continua idêntico
-    ao uso anterior.
-    """
     _load_environment()
 
     app = Flask(
@@ -72,44 +68,108 @@ def create_app(test_config=None):
         template_folder=os.path.join(PROJECT_ROOT, "templates"),
         static_folder=os.path.join(PROJECT_ROOT, "static"),
     )
-
     os.makedirs(app.instance_path, exist_ok=True)
+
+    is_production = os.getenv("APP_ENV", "").lower() == "production"
+    sqlite_fallback = "sqlite:///" + os.path.join(app.instance_path, "exposibot.db")
+    database_url = (os.getenv("DATABASE_URL") or "").strip() or sqlite_fallback
+    rate_storage = (os.getenv("RATELIMIT_STORAGE_URI") or "").strip() or "memory://"
+
     app.config.update(
         SECRET_KEY=_load_or_create_secret_key(app.instance_path),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=is_production,
         MAX_CONTENT_LENGTH=2 * 1024 * 1024,
-        SQLALCHEMY_DATABASE_URI="sqlite:///" + os.path.join(app.instance_path, "exposibot.db"),
+        SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        RATELIMIT_STORAGE_URI=rate_storage,
+        JSON_SORT_KEYS=False,
     )
     if test_config:
         app.config.update(test_config)
 
     db.init_app(app)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
+    limiter.init_app(app)
 
-    # Escapa HTML antes de converter Markdown para impedir que texto vindo da IA
-    # ou salvo pelo usuário seja promovido a HTML executável no navegador.
-    app.jinja_env.filters["markdown"] = lambda text: Markup(md.markdown(str(escape(text or ""))))
+    app.jinja_env.filters["markdown"] = render_markdown
     app.jinja_env.globals["csrf_token"] = _csrf_token
 
     @app.before_request
-    def protect_form_posts():
-        # Formulários tradicionais recebem token explícito. Os endpoints /api
-        # recebem JSON e não são acionáveis por formulários HTML comuns.
-        if request.method == "POST" and request.blueprint != "api":
-            expected = session.get("_csrf_token")
-            supplied = request.form.get("csrf_token", "")
-            if not expected or not supplied or not hmac.compare_digest(expected, supplied):
-                abort(400, description="Token CSRF ausente ou inválido.")
+    def begin_request():
+        g.request_started = time.perf_counter()
+        incoming = request.headers.get("X-Request-ID", "").strip()
+        g.request_id = incoming[:100] if incoming else uuid.uuid4().hex
+
+        if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+            return None
+
+        expected = session.get("_csrf_token")
+        supplied = (
+            request.headers.get("X-CSRFToken", "")
+            if request.is_json
+            else request.form.get("csrf_token", "")
+        )
+        if not expected or not supplied or not hmac.compare_digest(expected, supplied):
+            abort(400, description="Token CSRF ausente ou inválido.")
+        return None
+
+    @app.after_request
+    def finalize_request(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+            "script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; "
+            "frame-ancestors 'self'",
+        )
+        if is_production:
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
+
+        request_id = getattr(g, "request_id", uuid.uuid4().hex)
+        response.headers.setdefault("X-Request-ID", request_id)
+        started = getattr(g, "request_started", None)
+        duration_ms = round((time.perf_counter() - started) * 1000, 1) if started else None
+        if not app.config.get("TESTING"):
+            app.logger.info(
+                json.dumps(
+                    {
+                        "event": "http_request",
+                        "request_id": request_id,
+                        "method": request.method,
+                        "path": request.path,
+                        "status": response.status_code,
+                        "duration_ms": duration_ms,
+                    },
+                    ensure_ascii=False,
+                )
+            )
+        return response
+
+    @app.get("/healthz")
+    def healthz():
+        return {"status": "ok"}
+
+    @app.get("/readyz")
+    def readyz():
+        try:
+            db.session.execute(text("SELECT 1"))
+            return {"status": "ready"}
+        except Exception:
+            app.logger.exception("Database readiness check failed")
+            return {"status": "unavailable"}, 503
 
     from exposibot import auth, routes_api, routes_dashboard
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(routes_dashboard.bp)
     app.register_blueprint(routes_api.bp)
-
-    with app.app_context():
-        db.create_all()
 
     return app
