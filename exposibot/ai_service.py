@@ -14,7 +14,16 @@ GROQ_CONTEXT_RETRY_MAX_CHARS = 4500
 GROQ_MAX_OUTPUT_TOKENS = 2400
 GROQ_RETRY_MAX_OUTPUT_TOKENS = 1800
 
-GROQ_COMPACT_HOMILETICS_PROMPT = """
+PTBR_OUTPUT_RULE = """
+REGRA DE IDIOMA OBRIGATÓRIA: todo conteúdo textual destinado aos campos do esboço deve ser escrito
+em português brasileiro (pt-BR). Mesmo quando as notas ou fontes estiverem em inglês, traduza e
+sintetize o conteúdo para pt-BR. Não preencha ICT, tese, FCD, propósitos, introdução, títulos dos
+pontos, explicações, ilustrações, aplicações, transições, conexão cristocêntrica ou conclusão em
+inglês. Somente nomes próprios, termos técnicos originais indispensáveis e títulos bibliográficos
+podem permanecer no idioma original, quando necessário.
+""".strip()
+
+GROQ_COMPACT_HOMILETICS_PROMPT = f"""
 Você é um assistente de homilética reformada responsável por estruturar um sermão expositivo.
 Use somente o texto bíblico indicado e as notas fornecidas. Não invente fatos, fontes, citações,
 etimologias ou detalhes históricos. Preserve o sentido histórico-gramatical-literário da passagem.
@@ -22,7 +31,11 @@ Identifique ICT, tese, FCD, propósito redentivo, propósito básico e específi
 pontos conforme o fluxo real do texto. Cada ponto precisa ter texto-base, explicação, ilustração,
 aplicação e transição. A conexão com Cristo deve ser exegética e canonicamente legítima, sem
 alegorização ou moralismo. A conclusão deve conduzir à fé, arrependimento, consolo, esperança ou
-obediência em resposta à graça. Retorne somente JSON válido no schema solicitado.
+obediência em resposta à graça.
+
+{PTBR_OUTPUT_RULE}
+
+Retorne somente JSON válido no schema solicitado.
 """.strip()
 
 
@@ -113,12 +126,7 @@ def _clip_section(section, budget):
 
 
 def compact_research_notes(context, max_chars=GROQ_CONTEXT_MAX_CHARS):
-    """Compacta notas longas sem eliminar lentes/categorias inteiras.
-
-    O frontend concatena as notas como blocos iniciados por ``[TIPO]``. Quando o
-    conjunto excede o orçamento do Groq, cada bloco recebe uma fatia proporcional,
-    preservando o início (argumento principal) e o fim (normalmente referências).
-    """
+    """Compacta notas longas sem eliminar lentes/categorias inteiras."""
     text = re.sub(r"\n{3,}", "\n\n", (context or "").strip())
     if len(text) <= max_chars:
         return text
@@ -150,7 +158,8 @@ def generate_research(prompt, search_query):
                 f"Consulta de apoio: {search_query}\n\n"
                 "Use Google Search e priorize nesta ordem: fontes primárias/confessionais e acadêmicas; "
                 "instituições reformadas reconhecidas; material pastoral. Não trate fóruns como evidência-base. "
-                "Liste somente URLs realmente consultadas.\n\n"
+                "Liste somente URLs realmente consultadas. Responda em português brasileiro, preservando no "
+                "idioma original apenas nomes próprios, termos técnicos indispensáveis e títulos de fontes.\n\n"
                 f"COMANDO:\n{prompt}"
             )
             return (
@@ -167,7 +176,10 @@ def generate_research(prompt, search_query):
     if ai_providers.groq_client:
         try:
             context = _tavily_tiered_context(search_query)
-            user_content = f"CONTEXTO DE DADOS:\n{context}\n\n---\n\nCOMANDO:\n{prompt}"
+            user_content = (
+                f"CONTEXTO DE DADOS:\n{context}\n\n---\n\nCOMANDO:\n{prompt}\n\n"
+                "Responda em português brasileiro."
+            )
             return (
                 ai_providers._call_groq(ai_providers.MASTER_SYSTEM_PROMPT, user_content),
                 "groq",
@@ -184,7 +196,9 @@ def generate_research(prompt, search_query):
 
 def _groq_sermon_completion(prompt, context, *, max_chars, max_tokens):
     compact_context = compact_research_notes(context, max_chars=max_chars)
-    user_content = f"CONTEXTO DE DADOS:\n{compact_context}\n\n---\n\nCOMANDO:\n{prompt}"
+    user_content = (
+        f"CONTEXTO DE DADOS:\n{compact_context}\n\n---\n\nCOMANDO:\n{prompt}\n\n{PTBR_OUTPUT_RULE}"
+    )
     schema = SermonOutline.model_json_schema()
     completion = ai_providers.groq_client.chat.completions.create(
         model=ai_providers.GROQ_MODEL,
@@ -212,21 +226,20 @@ def _is_request_too_large(exc):
 
 
 def generate_sermon_json(prompt, context):
-    """Gera o esboço usando Gemini primeiro e Groq como fallback compacto.
-
-    O Gemini recebe as notas completas. O Groq usa um prompt de sistema mais curto
-    e compactação por lente para respeitar contas com limite baixo de TPM.
-    """
+    """Gera o esboço usando Gemini primeiro e Groq como fallback compacto."""
     errors = []
     schema = SermonOutline.model_json_schema()
-    full_user_content = f"CONTEXTO DE DADOS:\n{context}\n\n---\n\nCOMANDO:\n{prompt}"
+    full_user_content = (
+        f"CONTEXTO DE DADOS:\n{context}\n\n---\n\nCOMANDO:\n{prompt}\n\n{PTBR_OUTPUT_RULE}"
+    )
+    gemini_system_prompt = f"{ai_providers.HOMILETICS_SYSTEM_PROMPT}\n\n{PTBR_OUTPUT_RULE}"
 
     if ai_providers.gemini_client:
         try:
             return (
                 _gemini_interaction(
                     prompt=full_user_content,
-                    system_instruction=ai_providers.HOMILETICS_SYSTEM_PROMPT,
+                    system_instruction=gemini_system_prompt,
                     response_format={
                         "type": "text",
                         "mime_type": "application/json",

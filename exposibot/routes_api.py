@@ -91,6 +91,7 @@ def analyze():
         f"Analise a referência '{texto}': {instruction}"
         "\n\nA análise deve servir à preparação expositiva: preserve o sentido do texto, "
         "diferencie dado de inferência e, quando pertinente, indique relevância homilética sem saltar diretamente para a aplicação. "
+        "Escreva a resposta em português brasileiro, preservando no idioma original apenas nomes próprios, termos técnicos indispensáveis e títulos de fontes. "
         "Finalize com '### Referências Consultadas' contendo somente links reais efetivamente consultados."
     )
     search_query = SEARCH_QUERIES[tipo].format(ref=texto)
@@ -128,6 +129,8 @@ def suggest_sermon():
 Com base EXCLUSIVAMENTE nas notas de pesquisa fornecidas e no texto de {reference}, crie um esboço de sermão expositivo completo.
 
 O esboço deve nascer do fluxo da passagem e obedecer ao protocolo homilético do sistema. Não force três pontos se o texto pedir dois ou quatro. Não invente fatos ou ilustrações históricas.
+
+IDIOMA OBRIGATÓRIO: escreva TODO o conteúdo dos campos em português brasileiro (pt-BR), mesmo que parte das notas ou fontes esteja em inglês. Não deixe ICT, tese, FCD, propósitos, introdução, títulos de tópicos, explicações, ilustrações, aplicações, transições, conexão cristocêntrica ou conclusão em inglês. Apenas nomes próprios, termos originais indispensáveis e títulos bibliográficos podem permanecer no idioma original quando necessário.
 
 Retorne APENAS JSON válido com os campos: ict, tese, fcd, proposito_redentivo, proposito_basico, proposito_especifico, intro, topicos, conexao_cristocentrica e conclusao. Cada tópico deve conter titulo, texto_base, explicacao, ilustracao, aplicacao e transicao.
 """
