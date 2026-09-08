@@ -1,8 +1,29 @@
 """Orquestração moderna de IA com busca única e saída estruturada."""
 
+import logging
+import re
+
 from exposibot import ai_providers
 from exposibot.schemas import SermonOutline
 from exposibot.source_policy import SOURCE_TIERS
+
+logger = logging.getLogger(__name__)
+
+GROQ_CONTEXT_MAX_CHARS = 9000
+GROQ_CONTEXT_RETRY_MAX_CHARS = 4500
+GROQ_MAX_OUTPUT_TOKENS = 2400
+GROQ_RETRY_MAX_OUTPUT_TOKENS = 1800
+
+GROQ_COMPACT_HOMILETICS_PROMPT = """
+Você é um assistente de homilética reformada responsável por estruturar um sermão expositivo.
+Use somente o texto bíblico indicado e as notas fornecidas. Não invente fatos, fontes, citações,
+etimologias ou detalhes históricos. Preserve o sentido histórico-gramatical-literário da passagem.
+Identifique ICT, tese, FCD, propósito redentivo, propósito básico e específico. Organize de 2 a 4
+pontos conforme o fluxo real do texto. Cada ponto precisa ter texto-base, explicação, ilustração,
+aplicação e transição. A conexão com Cristo deve ser exegética e canonicamente legítima, sem
+alegorização ou moralismo. A conclusão deve conduzir à fé, arrependimento, consolo, esperança ou
+obediência em resposta à graça. Retorne somente JSON válido no schema solicitado.
+""".strip()
 
 
 def _gemini_interaction(*, prompt, system_instruction, tools=None, response_format=None):
@@ -75,6 +96,48 @@ def _tavily_tiered_context(query):
     return "\n".join(lines)
 
 
+def _clip_section(section, budget):
+    section = section.strip()
+    if len(section) <= budget:
+        return section
+    if budget < 240:
+        return section[:budget]
+
+    head_size = int(budget * 0.72)
+    tail_size = budget - head_size - 38
+    return (
+        section[:head_size].rstrip()
+        + "\n… [nota compactada para o fallback] …\n"
+        + section[-tail_size:].lstrip()
+    )
+
+
+def compact_research_notes(context, max_chars=GROQ_CONTEXT_MAX_CHARS):
+    """Compacta notas longas sem eliminar lentes/categorias inteiras.
+
+    O frontend concatena as notas como blocos iniciados por ``[TIPO]``. Quando o
+    conjunto excede o orçamento do Groq, cada bloco recebe uma fatia proporcional,
+    preservando o início (argumento principal) e o fim (normalmente referências).
+    """
+    text = re.sub(r"\n{3,}", "\n\n", (context or "").strip())
+    if len(text) <= max_chars:
+        return text
+
+    sections = [
+        item.strip()
+        for item in re.split(r"(?=^\[[^\]\n]{1,120}\]\s*$)", text, flags=re.MULTILINE)
+        if item.strip()
+    ]
+    if len(sections) <= 1:
+        return _clip_section(text, max_chars)
+
+    separator_cost = 2 * (len(sections) - 1)
+    usable = max(600, max_chars - separator_cost)
+    per_section = max(320, usable // len(sections))
+    compacted = "\n\n".join(_clip_section(section, per_section) for section in sections)
+    return compacted[:max_chars]
+
+
 def generate_research(prompt, search_query):
     errors = []
 
@@ -109,45 +172,57 @@ def generate_research(prompt, search_query):
         except Exception as exc:
             errors.append(f"Groq: {exc}")
 
+    if errors:
+        logger.warning("Falha dos provedores na pesquisa: %s", " | ".join(errors))
     raise ai_providers.ProviderUnavailable(
-        " | ".join(errors)
-        or "Nenhum provedor de IA configurado (defina GEMINI_API_KEY ou GROQ_API_KEY)."
+        "Não foi possível concluir a pesquisa com os provedores configurados. Tente novamente em instantes."
     )
 
 
+def _groq_sermon_completion(prompt, context, *, max_chars, max_tokens):
+    compact_context = compact_research_notes(context, max_chars=max_chars)
+    user_content = f"CONTEXTO DE DADOS:\n{compact_context}\n\n---\n\nCOMANDO:\n{prompt}"
+    schema = SermonOutline.model_json_schema()
+    completion = ai_providers.groq_client.chat.completions.create(
+        model=ai_providers.GROQ_MODEL,
+        messages=[
+            {"role": "system", "content": GROQ_COMPACT_HOMILETICS_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+        temperature=0.1,
+        max_tokens=max_tokens,
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "sermon_outline",
+                "strict": False,
+                "schema": schema,
+            },
+        },
+    )
+    return completion.choices[0].message.content
+
+
+def _is_request_too_large(exc):
+    message = str(exc).lower()
+    return "413" in message or "request too large" in message or "requested" in message and "tpm" in message
+
+
 def generate_sermon_json(prompt, context):
-    user_content = f"CONTEXTO DE DADOS:\n{context}\n\n---\n\nCOMANDO:\n{prompt}"
+    """Gera o esboço usando Gemini primeiro e Groq como fallback compacto.
+
+    O Gemini recebe as notas completas. O Groq usa um prompt de sistema mais curto
+    e compactação por lente para respeitar contas com limite baixo de TPM.
+    """
     errors = []
     schema = SermonOutline.model_json_schema()
-
-    if ai_providers.groq_client:
-        try:
-            completion = ai_providers.groq_client.chat.completions.create(
-                model=ai_providers.GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": ai_providers.HOMILETICS_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_content},
-                ],
-                temperature=0.1,
-                max_tokens=4096,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "sermon_outline",
-                        "strict": False,
-                        "schema": schema,
-                    },
-                },
-            )
-            return completion.choices[0].message.content, "groq"
-        except Exception as exc:
-            errors.append(f"Groq: {exc}")
+    full_user_content = f"CONTEXTO DE DADOS:\n{context}\n\n---\n\nCOMANDO:\n{prompt}"
 
     if ai_providers.gemini_client:
         try:
             return (
                 _gemini_interaction(
-                    prompt=user_content,
+                    prompt=full_user_content,
                     system_instruction=ai_providers.HOMILETICS_SYSTEM_PROMPT,
                     response_format={
                         "type": "text",
@@ -160,7 +235,35 @@ def generate_sermon_json(prompt, context):
         except Exception as exc:
             errors.append(f"Gemini: {exc}")
 
+    if ai_providers.groq_client:
+        try:
+            return (
+                _groq_sermon_completion(
+                    prompt,
+                    context,
+                    max_chars=GROQ_CONTEXT_MAX_CHARS,
+                    max_tokens=GROQ_MAX_OUTPUT_TOKENS,
+                ),
+                "groq",
+            )
+        except Exception as exc:
+            errors.append(f"Groq: {exc}")
+            if _is_request_too_large(exc):
+                try:
+                    return (
+                        _groq_sermon_completion(
+                            prompt,
+                            context,
+                            max_chars=GROQ_CONTEXT_RETRY_MAX_CHARS,
+                            max_tokens=GROQ_RETRY_MAX_OUTPUT_TOKENS,
+                        ),
+                        "groq",
+                    )
+                except Exception as retry_exc:
+                    errors.append(f"Groq retry compacto: {retry_exc}")
+
+    if errors:
+        logger.warning("Falha dos provedores ao gerar esboço: %s", " | ".join(errors))
     raise ai_providers.ProviderUnavailable(
-        " | ".join(errors)
-        or "Nenhum provedor de IA configurado (defina GROQ_API_KEY ou GEMINI_API_KEY)."
+        "Não foi possível gerar o esboço agora. O provedor principal falhou e o fallback também não conseguiu processar as notas. Tente novamente em instantes."
     )
