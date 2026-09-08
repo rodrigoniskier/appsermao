@@ -28,6 +28,29 @@
                 <div class="input-area">
                     <label for="bible-ref">Referência bíblica</label>
                     <input type="text" id="bible-ref" placeholder="Ex.: Romanos 8:28-30" value="{{ sermon.reference or '' }}" autocomplete="off">
+                    <details class="bible-picker">
+                        <summary>Selecionar livro, capítulo e versículos</summary>
+                        <div class="bible-picker-grid">
+                            <div>
+                                <label for="bible-book">Livro</label>
+                                <select id="bible-book"><option value="">Selecione…</option></select>
+                            </div>
+                            <div>
+                                <label for="bible-chapter">Capítulo</label>
+                                <select id="bible-chapter" disabled><option value="">—</option></select>
+                            </div>
+                            <div>
+                                <label for="bible-verse-start">Verso inicial</label>
+                                <select id="bible-verse-start" disabled><option value="">Todos</option></select>
+                            </div>
+                            <div>
+                                <label for="bible-verse-end">Verso final</label>
+                                <select id="bible-verse-end" disabled><option value="">—</option></select>
+                            </div>
+                        </div>
+                        <button type="button" id="apply-bible-selection" class="btn btn-muted full-width" disabled>Usar esta passagem</button>
+                        <p class="picker-status" id="bible-picker-status" aria-live="polite"></p>
+                    </details>
                 </div>
                 <div id="passage-panel" hidden></div>
                 <div class="tools-grid">
