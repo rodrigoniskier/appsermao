@@ -32,12 +32,20 @@ def get_metadata():
     return target_db.metadata
 
 
+def _migrate_configure_args():
+    """Return Flask-Migrate options without passing duplicate kwargs to Alembic."""
+    args = dict(current_app.extensions["migrate"].configure_args or {})
+    args.setdefault("compare_type", True)
+    return args
+
+
 def run_migrations_offline():
+    configure_args = _migrate_configure_args()
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
         target_metadata=get_metadata(),
         literal_binds=True,
-        compare_type=True,
+        **configure_args,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -51,14 +59,15 @@ def run_migrations_online():
                 directives[:] = []
                 current_app.logger.info("Nenhuma alteração de esquema detectada.")
 
+    configure_args = _migrate_configure_args()
+    configure_args.setdefault("process_revision_directives", process_revision_directives)
+
     connectable = get_engine()
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
-            compare_type=True,
-            process_revision_directives=process_revision_directives,
-            **current_app.extensions["migrate"].configure_args,
+            **configure_args,
         )
         with context.begin_transaction():
             context.run_migrations()
