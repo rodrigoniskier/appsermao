@@ -22,13 +22,14 @@ class SermonOutline(BaseModel):
     fcd: str = Field(default="", max_length=4000)
     proposito_redentivo: str = Field(default="", max_length=4000)
     proposito_basico: Literal[
+        "",
         "Evangelístico",
         "Devocional",
         "Missionário/Consagratório",
         "Pastoral/Consolador",
         "Ético",
         "Doutrinário",
-    ] | str = ""
+    ] = ""
     proposito_especifico: str = Field(default="", max_length=4000)
     intro: str = Field(default="", max_length=12000)
     topicos: list[SermonPoint] = Field(default_factory=list, max_length=8)
