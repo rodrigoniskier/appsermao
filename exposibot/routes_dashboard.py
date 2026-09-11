@@ -1,3 +1,4 @@
+import re
 from io import BytesIO
 
 from docx import Document
@@ -132,6 +133,120 @@ def _build_docx(sermon):
     return buf
 
 
+def _add_inline_markdown(paragraph, text):
+    """Render the small inline Markdown subset commonly returned by research providers."""
+    token_pattern = re.compile(
+        r"(\*\*.+?\*\*|__.+?__|`.+?`|\*[^*]+?\*|_[^_]+?_|\[[^\]]+\]\([^)]+\))"
+    )
+    cursor = 0
+    for match in token_pattern.finditer(text or ""):
+        if match.start() > cursor:
+            paragraph.add_run(text[cursor : match.start()])
+
+        token = match.group(0)
+        link = re.fullmatch(r"\[([^\]]+)\]\(([^)]+)\)", token)
+        if link:
+            paragraph.add_run(link.group(1))
+            paragraph.add_run(f" ({link.group(2)})")
+        elif token.startswith(("**", "__")):
+            run = paragraph.add_run(token[2:-2])
+            run.bold = True
+        elif token.startswith("`"):
+            run = paragraph.add_run(token[1:-1])
+            run.font.name = "Consolas"
+        else:
+            run = paragraph.add_run(token[1:-1])
+            run.italic = True
+        cursor = match.end()
+
+    if cursor < len(text or ""):
+        paragraph.add_run(text[cursor:])
+
+
+def _add_markdown_to_docx(document, markdown_text):
+    """Convert research Markdown to readable Word paragraphs without injecting HTML."""
+    pending = []
+
+    def flush_pending():
+        if not pending:
+            return
+        text = " ".join(part.strip() for part in pending if part.strip())
+        pending.clear()
+        if text:
+            paragraph = document.add_paragraph()
+            _add_inline_markdown(paragraph, text)
+
+    normalized = str(markdown_text or "").replace("\r\n", "\n").replace("\r", "\n")
+    for raw_line in normalized.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            flush_pending()
+            continue
+
+        heading = re.match(r"^(#{1,6})\s+(.+)$", line)
+        bullet = re.match(r"^[-*+]\s+(.+)$", line)
+        ordered = re.match(r"^\d+[.)]\s+(.+)$", line)
+
+        if heading:
+            flush_pending()
+            level = min(len(heading.group(1)) + 1, 3)
+            paragraph = document.add_heading(level=level)
+            _add_inline_markdown(paragraph, heading.group(2))
+        elif bullet:
+            flush_pending()
+            paragraph = document.add_paragraph(style="List Bullet")
+            _add_inline_markdown(paragraph, bullet.group(1))
+        elif ordered:
+            flush_pending()
+            paragraph = document.add_paragraph(style="List Number")
+            _add_inline_markdown(paragraph, ordered.group(1))
+        elif line.startswith(">"):
+            flush_pending()
+            paragraph = document.add_paragraph(style="Quote")
+            _add_inline_markdown(paragraph, line.lstrip("> "))
+        elif re.fullmatch(r"[-*_]{3,}", line):
+            flush_pending()
+        else:
+            pending.append(line)
+
+    flush_pending()
+
+
+def _build_research_docx(sermon):
+    notes = sermon.research_notes or []
+    document = Document()
+    style = document.styles["Normal"]
+    style.font.name = "Times New Roman"
+    style.font.size = Pt(12)
+
+    document.add_heading("Material de Pesquisa", 0)
+
+    sermon_line = document.add_paragraph()
+    sermon_line.add_run("Sermão: ").bold = True
+    sermon_line.add_run(sermon.display_title())
+
+    reference_line = document.add_paragraph()
+    reference_line.add_run("Texto base: ").bold = True
+    reference_line.add_run(sermon.reference or "Não informado")
+
+    count_line = document.add_paragraph()
+    count_line.add_run("Itens coletados: ").bold = True
+    count_line.add_run(str(len(notes)))
+
+    if not notes:
+        document.add_paragraph("Nenhum material de pesquisa foi incorporado até o momento.")
+    else:
+        for index, note in enumerate(notes, start=1):
+            tipo = str(note.get("tipo") or "Nota de pesquisa")
+            document.add_heading(f"{index}. {tipo}", level=1)
+            _add_markdown_to_docx(document, note.get("markdown", ""))
+
+    buf = BytesIO()
+    document.save(buf)
+    buf.seek(0)
+    return buf
+
+
 @bp.route("/sermon/<int:sermon_id>/download.docx")
 @login_required
 def download_docx(sermon_id):
@@ -141,6 +256,19 @@ def download_docx(sermon_id):
         buf,
         as_attachment=True,
         download_name=f"sermao_{sermon.id}.docx",
+    )
+
+
+@bp.route("/sermon/<int:sermon_id>/research.docx")
+@login_required
+def download_research_docx(sermon_id):
+    sermon = _get_owned_sermon(sermon_id)
+    buf = _build_research_docx(sermon)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"pesquisa_sermao_{sermon.id}.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
 
