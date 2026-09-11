@@ -92,7 +92,9 @@ def analyze():
         "\n\nA análise deve servir à preparação expositiva: preserve o sentido do texto, "
         "diferencie dado de inferência e, quando pertinente, indique relevância homilética sem saltar diretamente para a aplicação. "
         "Escreva a resposta em português brasileiro, preservando no idioma original apenas nomes próprios, termos técnicos indispensáveis e títulos de fontes. "
-        "Finalize com '### Referências Consultadas' contendo somente links reais efetivamente consultados."
+        "A resposta exibida em Resultado da Análise deve usar títulos apenas quando úteis e desenvolver todo o conteúdo em parágrafos corridos. "
+        "Não use tabelas, quadros, colunas, listas com marcadores ou listas numeradas; comparações devem ser explicadas em prosa. "
+        "Finalize com '### Referências Consultadas' contendo somente links reais efetivamente consultados, cada referência em seu próprio parágrafo, sem lista ou tabela."
     )
     search_query = SEARCH_QUERIES[tipo].format(ref=texto)
 
