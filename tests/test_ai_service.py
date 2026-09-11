@@ -20,6 +20,28 @@ class AiServiceTestCase(unittest.TestCase):
         self.assertIn("https://example.com/8", compacted)
         self.assertIn("nota compactada", compacted)
 
+    def test_analysis_output_rule_requires_paragraphs_and_forbids_tables(self):
+        rule = ai_service.ANALYSIS_PROSE_RULE.lower()
+        self.assertIn("parágrafos", rule)
+        self.assertIn("nunca use tabelas", rule)
+        self.assertIn("nunca use listas", rule)
+        self.assertIn("referências consultadas", rule)
+
+    def test_generate_research_injects_prose_rule_for_gemini(self):
+        with (
+            patch.object(ai_service.ai_providers, "gemini_client", object()),
+            patch.object(ai_service.ai_providers, "groq_client", None),
+            patch.object(ai_service, "_gemini_interaction", return_value="análise") as gemini,
+        ):
+            result, provider = ai_service.generate_research("Analise Romanos 8", "Romans 8 exegesis")
+
+        self.assertEqual(result, "análise")
+        self.assertEqual(provider, "gemini")
+        prompt = gemini.call_args.kwargs["prompt"].lower()
+        self.assertIn("resultado da análise", prompt)
+        self.assertIn("nunca use tabelas", prompt)
+        self.assertIn("parágrafos", prompt)
+
     def test_sermon_generation_prefers_gemini_when_available(self):
         with (
             patch.object(ai_service.ai_providers, "gemini_client", object()),
