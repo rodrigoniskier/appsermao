@@ -23,6 +23,17 @@ inglês. Somente nomes próprios, termos técnicos originais indispensáveis e t
 podem permanecer no idioma original, quando necessário.
 """.strip()
 
+ANALYSIS_PROSE_RULE = """
+FORMATO OBRIGATÓRIO PARA A ÁREA "RESULTADO DA ANÁLISE": escreva o conteúdo em prosa contínua,
+com frases completas e parágrafos bem desenvolvidos. Títulos e subtítulos em Markdown são permitidos
+para organizar a leitura, mas o conteúdo de cada seção deve permanecer em parágrafos corridos.
+NUNCA use tabelas Markdown, tabelas HTML, quadros, colunas, matrizes comparativas ou qualquer
+representação tabular. NUNCA use listas com marcadores ou listas numeradas no corpo da análise.
+Quando precisar comparar autores, hipóteses, termos, posições ou evidências, faça a comparação em
+parágrafos explicativos. Na seção "### Referências Consultadas", apresente cada referência como um
+parágrafo independente no formato "Título — URL", sem bullets, numeração ou tabela.
+""".strip()
+
 GROQ_COMPACT_HOMILETICS_PROMPT = f"""
 Você é um assistente de homilética reformada responsável por estruturar um sermão expositivo.
 Use somente o texto bíblico indicado e as notas fornecidas. Não invente fatos, fontes, citações,
@@ -160,6 +171,7 @@ def generate_research(prompt, search_query):
                 "instituições reformadas reconhecidas; material pastoral. Não trate fóruns como evidência-base. "
                 "Liste somente URLs realmente consultadas. Responda em português brasileiro, preservando no "
                 "idioma original apenas nomes próprios, termos técnicos indispensáveis e títulos de fontes.\n\n"
+                f"{ANALYSIS_PROSE_RULE}\n\n"
                 f"COMANDO:\n{prompt}"
             )
             return (
@@ -177,8 +189,9 @@ def generate_research(prompt, search_query):
         try:
             context = _tavily_tiered_context(search_query)
             user_content = (
-                f"CONTEXTO DE DADOS:\n{context}\n\n---\n\nCOMANDO:\n{prompt}\n\n"
-                "Responda em português brasileiro."
+                f"CONTEXTO DE DADOS:\n{context}\n\n---\n\n"
+                f"{ANALYSIS_PROSE_RULE}\n\n"
+                f"COMANDO:\n{prompt}\n\nResponda em português brasileiro."
             )
             return (
                 ai_providers._call_groq(ai_providers.MASTER_SYSTEM_PROMPT, user_content),
