@@ -19,6 +19,20 @@ def _get_owned_sermon(sermon_id):
     return sermon
 
 
+def _render_workspace(sermon):
+    """Render the workspace and add the research export control without duplicating template chrome."""
+    html = render_template("workspace.html", sermon=sermon)
+    marker = '<div class="action-area">'
+    export_url = url_for("dashboard.download_research_docx", sermon_id=sermon.id)
+    export_control = (
+        f'{marker}<div class="form-group">'
+        f'<a class="btn btn-muted full-width" href="{export_url}" '
+        'target="_blank" rel="noopener">Exportar pesquisa (.docx)</a>'
+        "</div>"
+    )
+    return html.replace(marker, export_control, 1)
+
+
 @bp.route("/")
 def index():
     if current_user.is_authenticated:
@@ -50,7 +64,7 @@ def new_sermon():
 @login_required
 def workspace(sermon_id):
     sermon = _get_owned_sermon(sermon_id)
-    return render_template("workspace.html", sermon=sermon)
+    return _render_workspace(sermon)
 
 
 @bp.route("/sermon/<int:sermon_id>/delete", methods=["POST"])
