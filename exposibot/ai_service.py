@@ -34,13 +34,48 @@ parágrafos explicativos. Na seção "### Referências Consultadas", apresente c
 parágrafo independente no formato "Título — URL", sem bullets, numeração ou tabela.
 """.strip()
 
+SERMON_SYNTHESIS_RULE = """
+REGRA DE BASE E INFERÊNCIA HOMILÉTICA:
+As notas de pesquisa são o único corpus evidenciário. Não introduza nenhuma premissa factual, lexical,
+histórica, arqueológica, canônica, doutrinária ou bibliográfica que não esteja sustentada nelas.
+
+Entretanto, NÃO confunda "usar exclusivamente as notas" com "copiar apenas frases que já estejam prontas".
+Você deve realizar a síntese homilética necessária: formular ICT, FCD, provisão redentiva, tese, propósitos,
+estrutura e aplicações como inferências logicamente derivadas das notas. Essas inferências não podem depender
+de informação externa nem contrariar qualificações, debates ou limites registrados na pesquisa.
+
+A sequência obrigatória de raciocínio é: exegese e fluxo do texto -> ideia exegética (assunto + asserção) ->
+contexto canônico/histórico-redentivo -> FCD -> provisão da graça -> caminho legítimo a Cristo -> aplicações
+-> proposição e propósitos -> estrutura expositiva -> introdução/transições/conclusão -> auditoria crítica.
+
+No campo ict, deixe reconhecíveis o ASSUNTO e a ASSERÇÃO. No campo proposito_redentivo, expresse a relação
+entre a necessidade humana e a provisão da graça. No campo conexao_cristocentrica, explique o caminho canônico
+legítimo a Cristo, sem alegoria ou apêndice artificial. Nas aplicações, derive consequências do texto, do FCD
+e da graça; considere dever, caráter, objetivos/vocação e discernimento, sem acrescentar novos fatos.
+
+Se uma conexão, ilustração ou detalhe não puder ser sustentado pelas notas, deixe o campo vazio ou seja
+explicitamente sóbrio. Nunca invente história, citação, estatística, referência bíblica, significado lexical
+ou fato histórico para completar o esboço.
+""".strip()
+
 GROQ_COMPACT_HOMILETICS_PROMPT = f"""
-Você é um assistente de homilética reformada responsável por estruturar um sermão expositivo.
-Use ESTRITAMENTE o conteúdo das notas de pesquisa fornecidas. A referência bíblica identifica a passagem, mas não é uma fonte adicional nesta chamada.
-Não consulte fontes externas, não recupere o texto bíblico por conta própria e não acrescente fatos, interpretações, aplicações ou ilustrações ausentes das notas.
-Organize de 2 a 4 pontos somente quando essa estrutura estiver sustentada pelo conteúdo pesquisado. Cada campo deve ser uma síntese rastreável das notas; quando não houver material suficiente, deixe o campo vazio ou seja explicitamente sóbrio.
-A conexão com Cristo deve aparecer somente se estiver sustentada pela pesquisa, sem alegorização, moralismo ou acréscimos externos.
-A conclusão deve ser derivada das notas, sem criar uma resposta pastoral que não esteja nelas.
+Você é um tutor de homilética reformada cristocêntrica. Estruture um sermão expositivo usando as notas
+fornecidas como ÚNICO corpus evidenciário. A referência bíblica identifica a passagem, mas não é uma fonte
+adicional nesta chamada. Não consulte fontes externas, não recupere o texto bíblico por conta própria e não
+complete lacunas com memória ou conhecimento geral.
+
+Use esta sequência: 1) sintetize a exegese e o fluxo do texto; 2) formule a ideia exegética em assunto +
+asserção; 3) situe a passagem no contexto canônico/histórico-redentivo somente conforme as notas; 4)
+identifique o FCD; 5) identifique a provisão da graça; 6) determine o caminho legítimo a Cristo; 7) derive
+aplicações; 8) formule tese e propósitos; 9) organize 2 a 4 movimentos expositivos apenas se o fluxo textual
+os sustentar; 10) desenvolva introdução, transições e conclusão; 11) audite eisegese, moralismo, alegoria,
+saltos canônicos e fatos não sustentados.
+
+É permitido produzir inferências homiléticas necessárias a partir das notas; não é permitido acrescentar
+novas premissas factuais. A aplicação deve nascer do texto, do FCD e da graça e pode considerar dever,
+caráter, objetivos/vocação e discernimento. A conexão cristocêntrica deve ser exegética e canonicamente
+legítima segundo as notas, nunca uma menção decorativa a Jesus. Se as notas não sustentarem uma ilustração
+ou detalhe, deixe o campo vazio em vez de inventar.
 
 {PTBR_OUTPUT_RULE}
 
@@ -166,8 +201,10 @@ def generate_research(prompt, search_query):
             user_content = (
                 f"Consulta de apoio: {search_query}\n\n"
                 "Esta é uma pesquisa teológica autônoma: investigue a pergunta em si e não a converta em esboço, aplicação ou orientação homilética. "
-                "Use Google Search e priorize nesta ordem: fontes primárias/confessionais e acadêmicas; instituições reformadas reconhecidas; "
+                "Siga a ordem metodológica histórico-gramatical-literária -> canônica/bíblico-teológica -> sistemática somente quando a lente solicitada exigir. "
+                "Use Google Search e priorize nesta ordem: texto e fontes primárias/técnicas pertinentes; fontes acadêmicas e confessionais; instituições reformadas reconhecidas; "
                 "material pastoral apenas como apoio secundário, nunca como substituto da evidência. Não trate fóruns como evidência-base. "
+                "Diferencie fato documentado, interpretação, inferência, hipótese, consenso, controvérsia e síntese teológica. "
                 "Liste somente URLs realmente consultadas. Responda em português brasileiro, preservando no "
                 "idioma original apenas nomes próprios, termos técnicos indispensáveis e títulos de fontes.\n\n"
                 f"{ANALYSIS_PROSE_RULE}\n\n"
@@ -189,6 +226,8 @@ def generate_research(prompt, search_query):
             context = _tavily_tiered_context(search_query)
             user_content = (
                 f"CONTEXTO DE DADOS:\n{context}\n\n---\n\n"
+                "Esta é pesquisa autônoma. Não gere sermão, FCD, tese, aplicação ou estrutura homilética. "
+                "Diferencie evidência, interpretação, inferência, hipótese e síntese.\n\n"
                 f"{ANALYSIS_PROSE_RULE}\n\n"
                 f"COMANDO:\n{prompt}\n\nResponda em português brasileiro."
             )
@@ -209,7 +248,8 @@ def generate_research(prompt, search_query):
 def _groq_sermon_completion(prompt, context, *, max_chars, max_tokens):
     compact_context = compact_research_notes(context, max_chars=max_chars)
     user_content = (
-        f"CONTEXTO DE DADOS:\n{compact_context}\n\n---\n\nCOMANDO:\n{prompt}\n\n{PTBR_OUTPUT_RULE}"
+        f"CONTEXTO DE DADOS:\n{compact_context}\n\n---\n\nCOMANDO:\n{prompt}\n\n"
+        f"{SERMON_SYNTHESIS_RULE}\n\n{PTBR_OUTPUT_RULE}"
     )
     schema = SermonOutline.model_json_schema()
     completion = ai_providers.groq_client.chat.completions.create(
@@ -242,7 +282,8 @@ def generate_sermon_json(prompt, context):
     errors = []
     schema = SermonOutline.model_json_schema()
     full_user_content = (
-        f"CONTEXTO DE DADOS:\n{context}\n\n---\n\nCOMANDO:\n{prompt}\n\n{PTBR_OUTPUT_RULE}"
+        f"CONTEXTO DE DADOS:\n{context}\n\n---\n\nCOMANDO:\n{prompt}\n\n"
+        f"{SERMON_SYNTHESIS_RULE}\n\n{PTBR_OUTPUT_RULE}"
     )
     gemini_system_prompt = f"{ai_providers.HOMILETICS_SYSTEM_PROMPT}\n\n{PTBR_OUTPUT_RULE}"
 
