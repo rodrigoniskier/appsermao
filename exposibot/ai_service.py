@@ -36,13 +36,11 @@ parágrafo independente no formato "Título — URL", sem bullets, numeração o
 
 GROQ_COMPACT_HOMILETICS_PROMPT = f"""
 Você é um assistente de homilética reformada responsável por estruturar um sermão expositivo.
-Use somente o texto bíblico indicado e as notas fornecidas. Não invente fatos, fontes, citações,
-etimologias ou detalhes históricos. Preserve o sentido histórico-gramatical-literário da passagem.
-Identifique ICT, tese, FCD, propósito redentivo, propósito básico e específico. Organize de 2 a 4
-pontos conforme o fluxo real do texto. Cada ponto precisa ter texto-base, explicação, ilustração,
-aplicação e transição. A conexão com Cristo deve ser exegética e canonicamente legítima, sem
-alegorização ou moralismo. A conclusão deve conduzir à fé, arrependimento, consolo, esperança ou
-obediência em resposta à graça.
+Use ESTRITAMENTE o conteúdo das notas de pesquisa fornecidas. A referência bíblica identifica a passagem, mas não é uma fonte adicional nesta chamada.
+Não consulte fontes externas, não recupere o texto bíblico por conta própria e não acrescente fatos, interpretações, aplicações ou ilustrações ausentes das notas.
+Organize de 2 a 4 pontos somente quando essa estrutura estiver sustentada pelo conteúdo pesquisado. Cada campo deve ser uma síntese rastreável das notas; quando não houver material suficiente, deixe o campo vazio ou seja explicitamente sóbrio.
+A conexão com Cristo deve aparecer somente se estiver sustentada pela pesquisa, sem alegorização, moralismo ou acréscimos externos.
+A conclusão deve ser derivada das notas, sem criar uma resposta pastoral que não esteja nelas.
 
 {PTBR_OUTPUT_RULE}
 
@@ -167,8 +165,9 @@ def generate_research(prompt, search_query):
         try:
             user_content = (
                 f"Consulta de apoio: {search_query}\n\n"
-                "Use Google Search e priorize nesta ordem: fontes primárias/confessionais e acadêmicas; "
-                "instituições reformadas reconhecidas; material pastoral. Não trate fóruns como evidência-base. "
+                "Esta é uma pesquisa teológica autônoma: investigue a pergunta em si e não a converta em esboço, aplicação ou orientação homilética. "
+                "Use Google Search e priorize nesta ordem: fontes primárias/confessionais e acadêmicas; instituições reformadas reconhecidas; "
+                "material pastoral apenas como apoio secundário, nunca como substituto da evidência. Não trate fóruns como evidência-base. "
                 "Liste somente URLs realmente consultadas. Responda em português brasileiro, preservando no "
                 "idioma original apenas nomes próprios, termos técnicos indispensáveis e títulos de fontes.\n\n"
                 f"{ANALYSIS_PROSE_RULE}\n\n"
@@ -177,7 +176,7 @@ def generate_research(prompt, search_query):
             return (
                 _gemini_interaction(
                     prompt=user_content,
-                    system_instruction=ai_providers.MASTER_SYSTEM_PROMPT,
+                    system_instruction=ai_providers.RESEARCH_SYSTEM_PROMPT,
                     tools=[{"type": "google_search"}],
                 ),
                 "gemini",
@@ -194,7 +193,7 @@ def generate_research(prompt, search_query):
                 f"COMANDO:\n{prompt}\n\nResponda em português brasileiro."
             )
             return (
-                ai_providers._call_groq(ai_providers.MASTER_SYSTEM_PROMPT, user_content),
+                ai_providers._call_groq(ai_providers.RESEARCH_SYSTEM_PROMPT, user_content),
                 "groq",
             )
         except Exception as exc:
