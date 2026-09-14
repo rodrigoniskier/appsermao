@@ -21,31 +21,31 @@ MAX_RESEARCH_ITEMS = 50
 ai_providers.GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
 SEARCH_QUERIES = {
-    "Dados Geográficos": "geography archaeology location {ref} biblical scholar commentary",
-    "Perfil Biográfico": "biography characters {ref} redemptive history reformed",
-    "Contexto Histórico": "historical context authorship date {ref} conservative commentary carson moo",
-    "Contexto Canônico": "biblical theology canon connections {ref} beale vos",
-    "Estilo Literário": "literary genre structure chiasm {ref} analysis",
-    "Contexto Político": "political context roman empire {ref} historical background",
-    "Sócio-Cultural": "social cultural customs {ref} ancient near east background",
-    "Contexto Filosófico": "philosophical background heresy {ref} biblical worldview",
-    "Teologia Sistemática": "systematic theology doctrines {ref} westminster confession berkhof",
-    "Foco Cristocêntrico": "christ centered exposition redemptive historical {ref} chapell biblical theology",
-    "Exegese (BHS/UBS5)": "exegesis greek hebrew syntax semantics {ref} technical commentary",
+    "Dados Geográficos": "biblical geography archaeology topography climate historical geography {ref} academic commentary",
+    "Perfil Biográfico": "biblical character biography identity relationships characterization {ref} academic commentary",
+    "Contexto Histórico": "historical context authorship date audience occasion purpose {ref} conservative academic commentary",
+    "Contexto Canônico": "canonical context biblical theology intertextuality covenant connections {ref} Beale Vos",
+    "Estilo Literário": "literary genre structure rhetoric discourse analysis figures of speech {ref} academic commentary",
+    "Contexto Político": "political institutions power conflicts empire historical context {ref} academic commentary",
+    "Sócio-Cultural": "social cultural customs institutions honor shame family religion {ref} ancient near east academic",
+    "Contexto Filosófico": "philosophical worldview intellectual context religious ideas {ref} biblical academic commentary",
+    "Teologia Sistemática": "systematic theology doctrines biblical theology {ref} Westminster Berkhof academic",
+    "Foco Cristocêntrico": "christology biblical theology redemptive history promise fulfillment {ref} Beale Carson Chapell",
+    "Exegese (BHS/UBS5)": "Hebrew Greek exegesis morphology syntax semantics textual criticism {ref} technical commentary",
 }
 
 PROMPTS = {
-    "Dados Geográficos": "Atue como arqueólogo bíblico. Detalhe localização, topografia, clima e relevância interpretativa do lugar, sem transformar geografia em alegoria.",
-    "Perfil Biográfico": "Faça o perfil biográfico e o papel dos personagens na história da redenção. Só forneça etimologia quando houver base confiável nas fontes.",
-    "Contexto Histórico": "Detalhe autoria, data, destinatários, ocasião e propósito segundo leitura conservadora/reformada, distinguindo consenso, hipótese e controvérsia.",
-    "Contexto Canônico": "Situe a passagem no cânon e na história da redenção. Mostre conexões pactuais e referências cruzadas legítimas, sem textos-prova artificiais.",
-    "Estilo Literário": "Analise gênero, estrutura, progressão do argumento, repetições e figuras de linguagem. Só proponha quiasmo quando a estrutura realmente o sustentar.",
-    "Contexto Político": "Analise estruturas de poder e tensões políticas relevantes para o sentido da passagem, evitando anacronismos.",
-    "Sócio-Cultural": "Explique costumes, convenções sociais, práticas e pressupostos culturais necessários para compreender a passagem.",
-    "Contexto Filosófico": "Identifique cosmovisões e pressupostos em conflito quando forem demonstráveis no texto e no contexto histórico.",
-    "Teologia Sistemática": "Extraia primeiro a teologia do texto e depois mostre sua continuidade com a teologia reformada e os Padrões de Westminster, evitando impor categorias sistemáticas ao texto.",
-    "Foco Cristocêntrico": "Identifique o Foco da Condição Decaída e mostre como a passagem se conecta legitimamente a Cristo por promessa-cumprimento, tipologia responsável, aliança, tema bíblico-teológico, necessidade humana ou ação redentora de Deus. Evite moralismo e alegorização.",
-    "Exegese (BHS/UBS5)": "Faça exegese técnica do texto original, incluindo morfologia, sintaxe e semântica apenas onde alterem ou aprofundem a interpretação. Não use transliteração por rotina.",
+    "Dados Geográficos": "Produza uma pesquisa geográfica da passagem. Examine localização, topografia, clima, rotas, arqueologia e demais dados espaciais relevantes, distinguindo evidência, reconstrução e hipótese. Explique como esses dados podem iluminar a interpretação sem alegorização.",
+    "Perfil Biográfico": "Produza uma pesquisa biográfica e prosopográfica dos personagens envolvidos. Examine identidade, trajetória, relações, caracterização narrativa, papel histórico e dados disponíveis, distinguindo o que o texto afirma do que é reconstrução ou tradição posterior. Só trate etimologia quando houver base confiável.",
+    "Contexto Histórico": "Produza uma pesquisa histórica sobre autoria, datação, destinatários, ocasião, ambiente, composição e propósito. Apresente o grau de consenso, as principais hipóteses, os argumentos de cada posição e as controvérsias relevantes dentro de uma leitura conservadora e reformada.",
+    "Contexto Canônico": "Produza uma pesquisa de teologia bíblica e contexto canônico. Mapeie a posição da passagem no cânon, relações intertextuais, temas, alianças, promessas, padrões e desenvolvimentos na história da redenção. Diferencie alusões demonstráveis de possíveis ecos e evite textos-prova artificiais.",
+    "Estilo Literário": "Produza uma análise literária rigorosa. Identifique gênero, forma, estrutura, unidade, progressão, vozes, repetições, inclusões, paralelismos, ironias, metáforas e demais recursos retóricos. Proponha quiasmo ou outras estruturas apenas quando houver evidência textual suficiente.",
+    "Contexto Político": "Produza uma pesquisa sobre o contexto político da passagem. Analise instituições, autoridades, relações de poder, conflitos, impérios, leis e ideologias relevantes, evitando anacronismos e distinguindo dados históricos de inferências.",
+    "Sócio-Cultural": "Produza uma pesquisa sociocultural. Explique costumes, instituições, relações familiares, convenções de honra e vergonha, práticas religiosas, econômicas e comunitárias e demais pressupostos culturais necessários à compreensão da passagem. Diferencie evidência, analogia e conjectura.",
+    "Contexto Filosófico": "Produza uma pesquisa sobre os pressupostos filosóficos, religiosos e cosmovisionais relevantes. Identifique ideias em conflito, categorias de pensamento e questões de verdade, conhecimento, ética e realidade somente quando forem demonstráveis no texto ou no contexto histórico.",
+    "Teologia Sistemática": "Produza uma pesquisa de teologia sistemática derivada primeiro da passagem e depois relacionada às doutrinas reformadas e aos Padrões de Westminster. Compare formulações, categorias, continuidades, tensões e limites sem impor uma doutrina ao texto nem reduzir a análise a uma aplicação pastoral.",
+    "Foco Cristocêntrico": "Produza uma pesquisa cristológica e redentivo-histórica. Investigue as formas legítimas pelas quais a passagem se relaciona com Cristo, incluindo promessa e cumprimento, tipologia responsável, aliança, temas bíblico-teológicos e obra redentora de Deus. Distinga afirmação textual, desenvolvimento canônico e inferência teológica; rejeite alegorias e conexões artificiais.",
+    "Exegese (BHS/UBS5)": "Produza uma exegese técnica do texto original. Examine crítica textual quando pertinente, morfologia, sintaxe, semântica, pragmática, variantes de tradução e relações discursivas somente na medida em que aprofundem a interpretação. Fundamente cada conclusão, reconheça alternativas relevantes e não use transliteração por rotina.",
 }
 
 
@@ -89,10 +89,13 @@ def analyze():
     instruction = PROMPTS[tipo]
     user_instruction = (
         f"Analise a referência '{texto}': {instruction}"
-        "\n\nA análise deve servir à preparação expositiva: preserve o sentido do texto, "
-        "diferencie dado de inferência e, quando pertinente, indique relevância homilética sem saltar diretamente para a aplicação. "
-        "Escreva a resposta em português brasileiro, preservando no idioma original apenas nomes próprios, termos técnicos indispensáveis e títulos de fontes. "
-        "A resposta exibida em Resultado da Análise deve usar títulos apenas quando úteis e desenvolver todo o conteúdo em parágrafos corridos. "
+        "\n\nEsta é uma pesquisa teológica autônoma, destinada a poder ser reutilizada em sermões, aulas, artigos, monografias ou outros trabalhos. "
+        "Investigue profundamente a lente solicitada, desenvolvendo evidências, argumentos, qualificações, debates, limites e implicações interpretativas pertinentes. "
+        "Não transforme a resposta em esboço de sermão, orientação ao pregador, aconselhamento pastoral ou aplicação congregacional. "
+        "Não formule ICT, tese homilética, FCD, propósito, pontos, introdução, ilustrações, transições ou conclusão de sermão, salvo se explicitamente solicitado. "
+        "Diferencie dado, interpretação, hipótese, consenso, controvérsia e inferência. "
+        "Escreva em português brasileiro, preservando no idioma original apenas nomes próprios, termos técnicos indispensáveis e títulos de fontes. "
+        "A resposta exibida em Resultado da Análise deve usar títulos somente quando ajudarem a investigação e desenvolver o conteúdo em parágrafos corridos. "
         "Não use tabelas, quadros, colunas, listas com marcadores ou listas numeradas; comparações devem ser explicadas em prosa. "
         "Finalize com '### Referências Consultadas' contendo somente links reais efetivamente consultados, cada referência em seu próprio parágrafo, sem lista ou tabela."
     )
@@ -128,15 +131,16 @@ def suggest_sermon():
         return jsonify({"error": "A referência bíblica está longa demais."}), 400
 
     prompt = f"""
-Com base EXCLUSIVAMENTE nas notas de pesquisa fornecidas e no texto de {reference}, crie um esboço de sermão expositivo completo.
+Com base EXCLUSIVAMENTE no conteúdo das notas de pesquisa fornecidas, crie um esboço de sermão expositivo completo.
 
-O esboço deve nascer do fluxo da passagem e obedecer ao protocolo homilético do sistema. Não force três pontos se o texto pedir dois ou quatro. Não invente fatos ou ilustrações históricas.
+A referência "{reference}" é apenas um identificador da passagem. Ela não é uma fonte adicional nesta chamada. Não consulte fontes externas, não recupere o texto bíblico por conta própria e não use memória, conhecimento geral ou qualquer informação que não esteja contida nas notas de pesquisa.
 
-IDIOMA OBRIGATÓRIO: escreva TODO o conteúdo dos campos em português brasileiro (pt-BR), mesmo que parte das notas ou fontes esteja em inglês. Não deixe ICT, tese, FCD, propósitos, introdução, títulos de tópicos, explicações, ilustrações, aplicações, transições, conexão cristocêntrica ou conclusão em inglês. Apenas nomes próprios, termos originais indispensáveis e títulos bibliográficos podem permanecer no idioma original quando necessário.
+O esboço deve ser uma síntese fiel e rastreável das notas. Não acrescente novas interpretações, fatos, conexões canônicas, aplicações ou ilustrações. Se determinado campo não puder ser sustentado pelas notas, deixe-o vazio ou escreva uma formulação explicitamente sóbria. Organize de 2 a 4 pontos somente se essa estrutura estiver sustentada pelo material pesquisado.
+
+IDIOMA OBRIGATÓRIO: escreva TODO o conteúdo dos campos em português brasileiro (pt-BR). Apenas nomes próprios, termos originais indispensáveis e títulos bibliográficos podem permanecer no idioma original quando necessário.
 
 Retorne APENAS JSON válido com os campos: ict, tese, fcd, proposito_redentivo, proposito_basico, proposito_especifico, intro, topicos, conexao_cristocentrica e conclusao. Cada tópico deve conter titulo, texto_base, explicacao, ilustracao, aplicacao e transicao.
 """
-
     try:
         json_str, provider = ai_service.generate_sermon_json(prompt, notes)
     except ai_providers.ProviderUnavailable as exc:
