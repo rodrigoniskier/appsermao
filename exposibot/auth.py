@@ -1,4 +1,4 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from exposibot.extensions import db, limiter, login_manager
@@ -32,6 +32,8 @@ def register():
             flash("Nome ou e-mail excede o tamanho permitido.", "error")
         elif len(password) < 10:
             flash("A senha precisa ter ao menos 10 caracteres.", "error")
+        elif len(password) > 256:
+            flash("A senha excede o tamanho permitido.", "error")
         elif User.query.filter_by(email=email).first():
             flash("Não foi possível criar a conta com esses dados.", "error")
         else:
@@ -39,6 +41,8 @@ def register():
             user.set_password(password)
             db.session.add(user)
             db.session.commit()
+            # Rotate the session state after privilege change to reduce session-fixation risk.
+            session.clear()
             login_user(user)
             return redirect(url_for("dashboard.dashboard"))
 
@@ -54,9 +58,15 @@ def login():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
+        if len(email) > 255 or len(password) > 256:
+            flash("E-mail ou senha inválidos.", "error")
+            return render_template("login.html")
+
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
+            # Discard any pre-authentication session state before binding the account.
+            session.clear()
             login_user(user)
             return redirect(url_for("dashboard.dashboard"))
 
