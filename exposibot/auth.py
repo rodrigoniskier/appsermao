@@ -1,3 +1,5 @@
+import secrets
+
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
@@ -43,6 +45,7 @@ def register():
             db.session.commit()
             # Rotate the session state after privilege change to reduce session-fixation risk.
             session.clear()
+            session["_csrf_token"] = secrets.token_urlsafe(32)
             login_user(user)
             return redirect(url_for("dashboard.dashboard"))
 
@@ -67,6 +70,7 @@ def login():
         if user and user.check_password(password):
             # Discard any pre-authentication session state before binding the account.
             session.clear()
+            session["_csrf_token"] = secrets.token_urlsafe(32)
             login_user(user)
             return redirect(url_for("dashboard.dashboard"))
 
